@@ -1,2 +1,1 @@
-# kafka
-RoadRunner Kafka driver for the Jobs plugin
+# Docs: [link](https://roadrunner.dev/docs/plugins-jobs/2.x/en)
