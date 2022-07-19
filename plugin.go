@@ -1,16 +1,20 @@
-package amqp
+package kafka
 
 import (
 	"github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
 	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
 	priorityqueue "github.com/roadrunner-server/api/v2/pq"
+	"github.com/roadrunner-server/kafka/v2/kafkajobs"
 	"go.uber.org/zap"
 )
 
 const (
-	pluginName string = "amqp"
+	pluginName string = "kafka"
 )
+
+// https://hub.docker.com/u/confluentinc
+// https://docs.confluent.io/platform/current/clients/index.html
 
 type Plugin struct {
 	log *zap.Logger
@@ -28,13 +32,12 @@ func (p *Plugin) Name() string {
 	return pluginName
 }
 
+// ConsumerFromConfig constructs kafka driver from the .rr.yaml configuration
 func (p *Plugin) ConsumerFromConfig(configKey string, pq priorityqueue.Queue) (jobs.Consumer, error) {
-	//return amqpjobs.NewAMQPConsumer(configKey, p.log, p.cfg, pq)
-	return nil, nil
+	return kafkajobs.NewKafkaConsumer(configKey, p.log, p.cfg, pq)
 }
 
-// ConsumerFromPipeline constructs AMQP driver from pipeline
+// ConsumerFromPipeline constructs kafka driver from pipeline
 func (p *Plugin) ConsumerFromPipeline(pipe *pipeline.Pipeline, pq priorityqueue.Queue) (jobs.Consumer, error) {
-	//return amqpjobs.FromPipeline(pipe, p.log, p.cfg, pq)
-	return nil, nil
+	return kafkajobs.FromPipeline(pipe, p.log, p.cfg, pq)
 }

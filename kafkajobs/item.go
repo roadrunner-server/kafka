@@ -1,12 +1,10 @@
-package amqpjobs
+package kafkajobs
 
 import (
 	"time"
 
 	"github.com/goccy/go-json"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
-	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v2/utils"
 )
 
@@ -103,14 +101,6 @@ func (i *Item) Respond(_ []byte, _ string) error {
 	return nil
 }
 
-// fromDelivery converts amqp.Delivery into an Item which will be pushed to the PQ
-func (c *Consumer) fromDelivery(d amqp.Delivery) (*Item, error) {
-	const op = errors.Op("from_delivery_convert")
-	item, err := c.unpack(d)
-
-	return item, err
-}
-
 func fromJob(job *jobs.Job) *Item {
 	return &Item{
 		Job:     job.Job,
@@ -124,26 +114,4 @@ func fromJob(job *jobs.Job) *Item {
 			AutoAck:  job.Options.AutoAck,
 		},
 	}
-}
-
-// pack job metadata into headers
-func pack(id string, j *Item) (amqp.Table, error) {
-	h, err := json.Marshal(j.Headers)
-	if err != nil {
-		return nil, err
-	}
-	return amqp.Table{
-		jobs.RRID:       id,
-		jobs.RRJob:      j.Job,
-		jobs.RRPipeline: j.Options.Pipeline,
-		jobs.RRHeaders:  h,
-		jobs.RRDelay:    j.Options.Delay,
-		jobs.RRPriority: j.Options.Priority,
-		jobs.RRAutoAck:  j.Options.AutoAck,
-	}, nil
-}
-
-// unpack restores jobs.Options
-func (c *Consumer) unpack(d amqp.Delivery) (*Item, error) {
-	return nil, nil
 }

@@ -1,4 +1,4 @@
-package amqpjobs
+package kafkajobs
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
 	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	pluginName string = "amqp"
+	pluginName string = "kafka"
 )
 
 type Consumer struct {
@@ -24,6 +25,10 @@ type Consumer struct {
 	log      *zap.Logger
 	pq       priorityqueue.Queue
 	pipeline atomic.Value
+
+	// kafka config
+	kafkaProducer *kafka.Producer
+	kafkaConsumer *kafka.Consumer
 
 	listeners uint32
 	delayed   *int64
@@ -44,7 +49,7 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 
 	// if no global section
 	if !cfg.Has(pluginName) {
-		return nil, errors.E(op, errors.Str("no global amqp configuration, global configuration should contain amqp addrs"))
+		return nil, errors.E(op, errors.Str("no global kafka configuration, global configuration should contain kafka "))
 	}
 
 	// PARSE CONFIGURATION START -------
@@ -54,7 +59,7 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 		return nil, errors.E(op, err)
 	}
 
-	err = cfg.UnmarshalKey(pluginName, &conf)
+	err = cfg.UnmarshalKey(pluginName, &conf.KafkaConfigMap)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -63,69 +68,16 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 	// PARSE CONFIGURATION END -------
 
 	jb := &Consumer{
-		log: log,
-		pq:  pq,
-		//consumeID:  uuid.NewString(),
-		stopCh: make(chan struct{}, 1),
-		//consumeAll: conf.ConsumeAll,
-
-		//retryTimeout: time.Minute,
-		//priority:     conf.Priority,
+		log:     log,
+		pq:      pq,
+		stopCh:  make(chan struct{}, 1),
 		delayed: utils.Int64(0),
-
-		//publishChan: make(chan *amqp.Channel, 1),
-		//stateChan:   make(chan *amqp.Channel, 1),
-		//redialCh:    make(chan *amqp.Error, 5),
-		//
-		//notifyCloseConsumeCh: make(chan *amqp.Error, 1),
-		//notifyCloseConnCh:    make(chan *amqp.Error, 1),
-		//notifyCloseStatCh:    make(chan *amqp.Error, 1),
-		//notifyClosePubCh:     make(chan *amqp.Error, 1),
-
-		//routingKey:        conf.RoutingKey,
-		//queue:             conf.Queue,
-		//durable:           conf.Durable,
-		//exchangeType:      conf.ExchangeType,
-		//deleteQueueOnStop: conf.DeleteQueueOnStop,
-		//exchangeName:      conf.Exchange,
-		//prefetch:          conf.Prefetch,
-		//exclusive:         conf.Exclusive,
-		//multipleAck:       conf.MultipleAck,
-		//requeueOnFail:     conf.RequeueOnFail,
 	}
 
-	//jb.conn, err = amqp.Dial(conf.Addr)
-	//if err != nil {
-	//	return nil, errors.E(op, err)
-	//}
-	//
-	//// save address
-	//jb.connStr = conf.Addr
-	//err = jb.initRabbitMQ()
-	//if err != nil {
-	//	return nil, errors.E(op, err)
-	//}
-
-	//pch, err := jb.conn.Channel()
-	//if err != nil {
-	//	return nil, errors.E(op, err)
-	//}
-	//
-	//stch, err := jb.conn.Channel()
-	//if err != nil {
-	//	return nil, errors.E(op, err)
-	//}
-	//
-	//jb.conn.NotifyClose(jb.notifyCloseConnCh)
-	//pch.NotifyClose(jb.notifyClosePubCh)
-	//stch.NotifyClose(jb.notifyCloseStatCh)
-	//
-	//jb.publishChan <- pch
-	//jb.stateChan <- stch
-
-	// run redialer and requeue listener for the connection
-	//jb.redialer()
-	//jb.redialMergeCh()
+	jb.kafkaProducer, err = kafka.NewProducer(conf.KafkaConfigMap)
+	if err != nil {
+		return nil, err
+	}
 
 	return jb, nil
 }
@@ -151,74 +103,11 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Co
 	// PARSE CONFIGURATION -------
 
 	jb := &Consumer{
-		log: log,
-		pq:  pq,
-		//consumeID:    uuid.NewString(),
-		stopCh: make(chan struct{}, 1),
-		//retryTimeout: time.Minute,
+		log:     log,
+		pq:      pq,
+		stopCh:  make(chan struct{}, 1),
 		delayed: utils.Int64(0),
-
-		//publishChan: make(chan *amqp.Channel, 1),
-		//stateChan:   make(chan *amqp.Channel, 1),
-		//
-		//redialCh:             make(chan *amqp.Error, 5),
-		//notifyCloseConsumeCh: make(chan *amqp.Error, 1),
-		//notifyCloseConnCh:    make(chan *amqp.Error, 1),
-		//notifyCloseStatCh:    make(chan *amqp.Error, 1),
-		//notifyClosePubCh:     make(chan *amqp.Error, 1),
-		//
-		//consumeAll:        pipeline.Bool(consumeAll, false),
-		//routingKey:        pipeline.String(routingKey, ""),
-		//queue:             pipeline.String(queue, "default"),
-		//exchangeType:      pipeline.String(exchangeType, "direct"),
-		//exchangeName:      pipeline.String(exchangeKey, "amqp.default"),
-		//prefetch:          pipeline.Int(prefetch, 10),
-		//priority:          int64(pipeline.Int(priority, 10)),
-		//durable:           pipeline.Bool(durable, false),
-		//deleteQueueOnStop: pipeline.Bool(deleteOnStop, false),
-		//exclusive:         pipeline.Bool(exclusive, false),
-		//multipleAck:       pipeline.Bool(multipleAsk, false),
-		//requeueOnFail:     pipeline.Bool(requeueOnFail, false),
 	}
-
-	//jb.conn, err = amqp.Dial(conf.Addr)
-	//if err != nil {
-	//	return nil, errors.E(op, err)
-	//}
-	//
-	//// save address
-	//jb.connStr = conf.Addr
-	//
-	//err = jb.initRabbitMQ()
-	//if err != nil {
-	//	return nil, errors.E(op, err)
-	//}
-	//
-	//pch, err := jb.conn.Channel()
-	//if err != nil {
-	//	return nil, errors.E(op, err)
-	//}
-	//
-	//// channel to report amqp states
-	//stch, err := jb.conn.Channel()
-	//if err != nil {
-	//	return nil, errors.E(op, err)
-	//}
-	//
-	//jb.conn.NotifyClose(jb.notifyCloseConnCh)
-	//pch.NotifyClose(jb.notifyClosePubCh)
-	//stch.NotifyClose(jb.notifyCloseStatCh)
-	//
-	//jb.publishChan <- pch
-	//jb.stateChan <- stch
-	//
-	//// register the pipeline
-	//// error here is always nil
-	//_ = jb.Register(context.Background(), pipeline)
-	//
-	//// run redialer for the connection
-	//jb.redialer()
-	//jb.redialMergeCh()
 
 	return jb, nil
 }
@@ -282,6 +171,8 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 		return
 	}
 
+	c.kafkaConsumer.Pause([]kafka.TopicPartition{})
+
 	atomic.AddUint32(&c.listeners, ^uint32(0))
 
 	// protect connection (redial)
@@ -318,6 +209,16 @@ func (c *Consumer) Stop(context.Context) error {
 	c.stopCh <- struct{}{}
 
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+
+	// close all
+	if c.kafkaConsumer != nil {
+		_ = c.kafkaConsumer.Close()
+	}
+
+	if c.kafkaProducer != nil {
+		c.kafkaProducer.Close()
+	}
+
 	c.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 	return nil
 }
@@ -325,5 +226,55 @@ func (c *Consumer) Stop(context.Context) error {
 // handleItem
 func (c *Consumer) handleItem(ctx context.Context, msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
-	return nil
+
+	delivCh := make(chan kafka.Event, 1)
+
+	kh := make([]kafka.Header, len(msg.Headers))
+
+	for k, v := range msg.Headers {
+		for i := 0; i < len(v); i++ {
+			kh = append(kh, kafka.Header{
+				Key:   k,
+				Value: utils.AsBytes(v[i]),
+			})
+		}
+	}
+
+	err := c.kafkaProducer.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{
+			Topic:     nil,
+			Partition: 0,
+			Offset:    0,
+			Metadata:  nil,
+		},
+		Value:         msg.Body(),
+		Key:           utils.AsBytes(msg.ID()),
+		Timestamp:     time.Now(),
+		TimestampType: kafka.TimestampCreateTime,
+		Headers:       kh,
+	}, delivCh)
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case e := <-delivCh:
+			switch ev := e.(type) {
+			case *kafka.Message:
+				if ev.TopicPartition.Error != nil {
+					return errors.Errorf("delivery failed: %v\n", ev.TopicPartition)
+				} else {
+					c.log.Debug("message delivered", zap.String("topic", *ev.TopicPartition.Topic))
+					return nil
+				}
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func ptrTo[T any](val T) *T {
+	return &val
 }
