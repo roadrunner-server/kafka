@@ -41,4 +41,7 @@ func (c *config) InitDefault() {
 		// set addr from the global config values
 		_ = c.KafkaConfigMap.SetKey("bootstrap.servers", c.Addr)
 	}
+
+	delete(*c.KafkaConfigMap, "priority")
+	delete(*c.KafkaConfigMap, "prefetch")
 }

@@ -54,12 +54,12 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 
 	// PARSE CONFIGURATION START -------
 	var conf config
-	err := cfg.UnmarshalKey(configKey, &conf)
+	err := cfg.UnmarshalKey(pluginName, &conf)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	err = cfg.UnmarshalKey(pluginName, &conf.KafkaConfigMap)
+	err = cfg.UnmarshalKey(configKey, &conf.KafkaConfigMap)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
