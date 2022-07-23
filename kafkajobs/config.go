@@ -1,29 +1,27 @@
 package kafkajobs
 
 import (
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-)
+	"strings"
 
-// pipeline rabbitmq info
-const ()
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/roadrunner-server/errors"
+)
 
 // config is used to parse pipeline configuration
 type config struct {
 	// global
-	Addr     string `mapstructure:"addr"`
-	Prefetch int    `mapstructure:"prefetch"`
-	Priority int    `mapstructure:"priority"`
+	Prefetch int      `mapstructure:"prefetch"`
+	Priority int      `mapstructure:"priority"`
+	Topics   []string `mapstructure:"topics"`
 
 	// kafka local
 	// https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
-	KafkaConfigMap *kafka.ConfigMap
+	// https://docs.confluent.io/kafka-clients/go/current/overview.html
+	KafkaConsumerConfigMap *kafka.ConfigMap
+	KafkaProducerConfigMap *kafka.ConfigMap
 }
 
-func (c *config) InitDefault() {
-	if c.Addr == "" {
-		c.Addr = "127.0.0.1:9092"
-	}
-
+func (c *config) InitDefault() error {
 	if c.Prefetch == 0 {
 		c.Prefetch = 10
 	}
@@ -32,16 +30,48 @@ func (c *config) InitDefault() {
 		c.Priority = 10
 	}
 
-	if c.KafkaConfigMap == nil {
-		c.KafkaConfigMap = &kafka.ConfigMap{}
-		_ = c.KafkaConfigMap.SetKey("bootstrap.servers", "127.0.0.1:9092")
-		_ = c.KafkaConfigMap.SetKey("group.id", "default")
-		_ = c.KafkaConfigMap.SetKey("auto.offset.reset", "earliest")
-	} else {
-		// set addr from the global config values
-		_ = c.KafkaConfigMap.SetKey("bootstrap.servers", c.Addr)
+	if len(c.Topics) == 0 {
+		return errors.Str("at least 1 topic should be set per pipeline")
 	}
 
-	delete(*c.KafkaConfigMap, "priority")
-	delete(*c.KafkaConfigMap, "prefetch")
+	if c.KafkaConsumerConfigMap == nil {
+		c.KafkaConsumerConfigMap = &kafka.ConfigMap{}
+		_ = c.KafkaConsumerConfigMap.SetKey("bootstrap.servers", "127.0.0.1:9092")
+		_ = c.KafkaConsumerConfigMap.SetKey("group.id", "default")
+		_ = c.KafkaConsumerConfigMap.SetKey("auto.offset.reset", "earliest")
+	}
+
+	// delete RR driver keys
+	delete(*c.KafkaConsumerConfigMap, "priority")
+	delete(*c.KafkaConsumerConfigMap, "prefetch")
+	delete(*c.KafkaConsumerConfigMap, "topics")
+
+	newMapConsumer := &kafka.ConfigMap{}
+
+	for k, v := range *c.KafkaConsumerConfigMap {
+		kk := strings.ReplaceAll(k, ":", ".")
+		_ = newMapConsumer.SetKey(kk, v)
+	}
+
+	c.KafkaConsumerConfigMap = newMapConsumer
+
+	if c.KafkaProducerConfigMap == nil {
+		c.KafkaProducerConfigMap = &kafka.ConfigMap{}
+		_ = c.KafkaProducerConfigMap.SetKey("bootstrap.servers", "127.0.0.1:9092")
+	}
+
+	// delete RR driver keys
+	delete(*c.KafkaProducerConfigMap, "priority")
+	delete(*c.KafkaProducerConfigMap, "prefetch")
+	delete(*c.KafkaProducerConfigMap, "topics")
+
+	newMapProducer := &kafka.ConfigMap{}
+
+	for k, v := range *c.KafkaProducerConfigMap {
+		kk := strings.ReplaceAll(k, ":", ".")
+		_ = newMapProducer.SetKey(kk, v)
+	}
+
+	c.KafkaProducerConfigMap = newMapProducer
+	return nil
 }

@@ -11,6 +11,10 @@ require (
 	go.uber.org/zap v1.21.0
 )
 
+replace (
+	github.com/roadrunner-server/api/v2 => ../../api
+)
+
 require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/roadrunner-server/tcplisten v1.1.2 // indirect

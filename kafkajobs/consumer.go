@@ -2,6 +2,8 @@ package kafkajobs
 
 import (
 	"context"
+	"encoding/binary"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,10 +23,11 @@ const (
 )
 
 type Consumer struct {
-	sync.Mutex
+	mu       sync.Mutex
 	log      *zap.Logger
 	pq       priorityqueue.Queue
 	pipeline atomic.Value
+	cfg      *config
 
 	// kafka config
 	kafkaProducer *kafka.Producer
@@ -47,24 +50,27 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 		return nil, errors.E(op, errors.Errorf("no configuration by provided key: %s", configKey))
 	}
 
-	// if no global section
-	if !cfg.Has(pluginName) {
-		return nil, errors.E(op, errors.Str("no global kafka configuration, global configuration should contain kafka "))
-	}
-
 	// PARSE CONFIGURATION START -------
 	var conf config
-	err := cfg.UnmarshalKey(pluginName, &conf)
+	err := cfg.UnmarshalKey(configKey, &conf)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	err = cfg.UnmarshalKey(configKey, &conf.KafkaConfigMap)
+	err = cfg.UnmarshalKey(fmt.Sprintf("%s.consumer_config", configKey), &conf.KafkaConsumerConfigMap)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	conf.InitDefault()
+	err = cfg.UnmarshalKey(fmt.Sprintf("%s.producer_config", configKey), &conf.KafkaProducerConfigMap)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	err = conf.InitDefault()
+	if err != nil {
+		return nil, err
+	}
 	// PARSE CONFIGURATION END -------
 
 	jb := &Consumer{
@@ -72,9 +78,11 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 		pq:      pq,
 		stopCh:  make(chan struct{}, 1),
 		delayed: utils.Int64(0),
+		cfg:     &conf,
 	}
 
-	jb.kafkaProducer, err = kafka.NewProducer(conf.KafkaConfigMap)
+	// start producer to push the jobs
+	jb.kafkaProducer, err = kafka.NewProducer(conf.KafkaProducerConfigMap)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +107,10 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Co
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	conf.InitDefault()
+	err = conf.InitDefault()
+	if err != nil {
+		return nil, err
+	}
 	// PARSE CONFIGURATION -------
 
 	jb := &Consumer{
@@ -144,9 +155,15 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 		return errors.E(op, errors.Errorf("no such pipeline registered: %s", pipe.Name()))
 	}
 
-	// protect connection (redial)
-	c.Lock()
-	defer c.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	err := c.initConsumer(c.cfg.Topics)
+	if err != nil {
+		return err
+	}
+
+	// start a listener
+	go c.listen()
 
 	atomic.StoreUint32(&c.listeners, 1)
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
@@ -171,13 +188,26 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 		return
 	}
 
-	c.kafkaConsumer.Pause([]kafka.TopicPartition{})
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.kafkaConsumer != nil {
+		ktp := make(kafka.TopicPartitions, len(c.cfg.Topics))
 
+		for i := 0; i < len(c.cfg.Topics); i++ {
+			ktp = append(ktp, kafka.TopicPartition{
+				Topic: ptrTo(c.cfg.Topics[i]),
+			})
+		}
+
+		err := c.kafkaConsumer.Pause(ktp)
+		if err != nil {
+			c.log.Error("failed to pause kafka listener", zap.Error(err))
+			return
+		}
+	}
+
+	// remove active listener
 	atomic.AddUint32(&c.listeners, ^uint32(0))
-
-	// protect connection (redial)
-	c.Lock()
-	defer c.Unlock()
 
 	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 }
@@ -189,17 +219,33 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 		c.log.Error("no such pipeline", zap.String("requested", p))
 	}
 
-	// protect connection (redial)
-	c.Lock()
-	defer c.Unlock()
-
 	l := atomic.LoadUint32(&c.listeners)
 	// no active listeners
 	if l == 1 {
 		c.log.Warn("amqp listener is already in the active state")
 		return
 	}
+	// protect connection (redial)
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
+	if c.kafkaConsumer != nil {
+		ktp := make(kafka.TopicPartitions, len(c.cfg.Topics))
+
+		for i := 0; i < len(c.cfg.Topics); i++ {
+			ktp = append(ktp, kafka.TopicPartition{
+				Topic: ptrTo(c.cfg.Topics[i]),
+			})
+		}
+
+		err := c.kafkaConsumer.Resume(ktp)
+		if err != nil {
+			c.log.Error("failed to resume kafka listener", zap.Error(err))
+			return
+		}
+	}
+
+	atomic.StoreUint32(&c.listeners, 1)
 	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 }
 
@@ -216,6 +262,7 @@ func (c *Consumer) Stop(context.Context) error {
 	}
 
 	if c.kafkaProducer != nil {
+		c.kafkaProducer.Flush(15 * 1000)
 		c.kafkaProducer.Close()
 	}
 
@@ -227,52 +274,93 @@ func (c *Consumer) Stop(context.Context) error {
 func (c *Consumer) handleItem(ctx context.Context, msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
 
-	delivCh := make(chan kafka.Event, 1)
+	// confirm channel
+	eventCh := make(chan kafka.Event, 1)
 
-	kh := make([]kafka.Header, len(msg.Headers))
+	kh := make([]kafka.Header, 0, len(msg.Headers))
 
+	// only 1 header per key is supported
+	// RR_HEADERS
 	for k, v := range msg.Headers {
-		for i := 0; i < len(v); i++ {
+		if len(v) > 0 {
 			kh = append(kh, kafka.Header{
 				Key:   k,
-				Value: utils.AsBytes(v[i]),
+				Value: utils.AsBytes(v[0]),
 			})
 		}
 	}
 
+	/*
+		RRJob      string = "rr_job"
+		RRHeaders  string = "rr_headers"
+		RRPipeline string = "rr_pipeline"
+		RRDelay    string = "rr_delay"
+		RRPriority string = "rr_priority"
+		RRAutoAck  string = "rr_auto_ack"
+	*/
+
+	// RRJob
+	kh = append(kh, kafka.Header{
+		Key:   jobs.RRJob,
+		Value: []byte(msg.Job),
+	})
+	// RRPipeline
+	kh = append(kh, kafka.Header{
+		Key:   jobs.RRPipeline,
+		Value: []byte(msg.Options.Pipeline),
+	})
+	// RRPriority
+	pri := make([]byte, 8)
+	binary.LittleEndian.PutUint64(pri, uint64(msg.Priority()))
+	kh = append(kh, kafka.Header{
+		Key:   jobs.RRPriority,
+		Value: pri,
+	})
+
+	// put auto_ack only if exists
+	if msg.Options.AutoAck {
+		ack := make([]byte, 1)
+		ack[0] = 1
+		kh = append(kh, kafka.Header{
+			Key:   jobs.RRAutoAck,
+			Value: ack,
+		})
+	}
+
 	err := c.kafkaProducer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{
-			Topic:     nil,
-			Partition: 0,
-			Offset:    0,
-			Metadata:  nil,
+			Topic:     ptrTo(msg.Options.topic),
+			Partition: msg.Options.partition,
+			Offset:    msg.Options.offset,
+			Metadata:  ptrTo(msg.Options.metadata),
 		},
-		Value:         msg.Body(),
+		Value: msg.Body(),
+		// Job ID
+		// RRID       string = "rr_id"
 		Key:           utils.AsBytes(msg.ID()),
 		Timestamp:     time.Now(),
 		TimestampType: kafka.TimestampCreateTime,
 		Headers:       kh,
-	}, delivCh)
+	}, eventCh)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
-	for {
-		select {
-		case e := <-delivCh:
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					return errors.Errorf("delivery failed: %v\n", ev.TopicPartition)
-				} else {
-					c.log.Debug("message delivered", zap.String("topic", *ev.TopicPartition.Topic))
-					return nil
-				}
+	select {
+	case e := <-eventCh:
+		switch ev := e.(type) { //nolint:gocritic
+		case *kafka.Message:
+			if ev.TopicPartition.Error != nil {
+				return errors.Errorf("delivery failed: %v", ev.TopicPartition.Error)
 			}
-		case <-ctx.Done():
-			return ctx.Err()
+
+			c.log.Debug("message delivered", zap.String("topic", *ev.TopicPartition.Topic))
 		}
+	case <-ctx.Done():
+		return errors.E(errors.TimeOut, ctx.Err())
 	}
+
+	return nil
 }
 
 func ptrTo[T any](val T) *T {
