@@ -5,14 +5,10 @@ go 1.18
 require (
 	github.com/confluentinc/confluent-kafka-go v1.9.1
 	github.com/goccy/go-json v0.9.10
-	github.com/roadrunner-server/api/v2 v2.19.0
+	github.com/roadrunner-server/api/v2 v2.20.0
 	github.com/roadrunner-server/errors v1.1.2
 	github.com/roadrunner-server/sdk/v2 v2.18.0
 	go.uber.org/zap v1.21.0
-)
-
-replace (
-	github.com/roadrunner-server/api/v2 => ../../api
 )
 
 require (
