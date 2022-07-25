@@ -2,6 +2,7 @@ package kafkajobs
 
 import (
 	"encoding/binary"
+	"sync/atomic"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
@@ -30,6 +31,11 @@ func (c *Consumer) listen() {
 			case <-c.stopCh:
 				return
 			default:
+				// pipeline was stopped
+				if atomic.LoadUint32(&c.stopped) == 1 {
+					return
+				}
+
 				ev := c.kafkaConsumer.Poll(-1)
 				switch e := ev.(type) {
 				case kafka.AssignedPartitions:
@@ -53,9 +59,10 @@ func (c *Consumer) listen() {
 				case kafka.PartitionEOF:
 					c.log.Info("partition EOF", zap.String("topic", *e.Topic), zap.Int32("partition", e.Partition), zap.Error(e.Error))
 					continue
+					// redial or other type of error. We can continue our for loop
 				case kafka.Error:
 					c.log.Error("kafka consumer", zap.Error(e))
-					return
+					continue
 				}
 			}
 		}
@@ -76,6 +83,7 @@ func (c *Consumer) fromConsumer(msg *kafka.Message) *Item {
 	var rrpipeline string
 	var rrpriority int64
 	var rrautoack bool
+	headers := make(map[string][]string)
 
 	for i := 0; i < len(msg.Headers); i++ {
 		switch msg.Headers[i].Key {
@@ -87,6 +95,8 @@ func (c *Consumer) fromConsumer(msg *kafka.Message) *Item {
 			rrpriority = int64(binary.LittleEndian.Uint64(msg.Headers[i].Value))
 		case jobs.RRAutoAck:
 			rrautoack = true
+		default:
+			headers[msg.Headers[i].Key] = []string{string(msg.Headers[i].Value)}
 		}
 	}
 
@@ -106,7 +116,7 @@ func (c *Consumer) fromConsumer(msg *kafka.Message) *Item {
 		Job:     rrjob,
 		Ident:   string(msg.Key),
 		Payload: string(msg.Value),
-		Headers: nil,
+		Headers: headers,
 		Options: &Options{
 			Priority: rrpriority,
 			Pipeline: rrpipeline,

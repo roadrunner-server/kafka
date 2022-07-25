@@ -123,6 +123,18 @@ func (i *Item) Nack() error {
 func (i *Item) Copy() *Item {
 	item := new(Item)
 	*item = *i
+
+	item.Options = &Options{
+		Priority:  i.Options.Priority,
+		Pipeline:  i.Options.Pipeline,
+		Delay:     i.Options.Delay,
+		AutoAck:   i.Options.AutoAck,
+		topic:     i.Options.topic,
+		partition: i.Options.partition,
+		metadata:  i.Options.metadata,
+		offset:    i.Options.offset,
+	}
+
 	return item
 }
 
@@ -132,6 +144,8 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 
 	msg := i.Copy()
 	msg.Headers = headers
+	msg.Options.producer = nil
+	msg.Options.consumer = nil
 
 	// confirm channel
 	eventCh := make(chan kafka.Event, 1)

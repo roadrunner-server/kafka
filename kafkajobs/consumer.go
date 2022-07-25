@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/goccy/go-json"
 	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
 	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
@@ -16,10 +19,6 @@ import (
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v2/utils"
 	"go.uber.org/zap"
-)
-
-const (
-	pluginName string = "kafka"
 )
 
 type Consumer struct {
@@ -39,13 +38,10 @@ type Consumer struct {
 	stopped   uint32
 }
 
-// NewKafkaConsumer initializes kafka rabbitmq pipeline
+// NewKafkaConsumer initializes kafka pipeline from the configuration
 func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_kafka_consumer")
-	// we need to obtain two parts of the amqp information here.
-	// firs part - address to connect, it is located in the global section under the amqp pluginName
-	// second part - queues and other pipeline information
-	// if no such key - error
+
 	if !cfg.Has(configKey) {
 		return nil, errors.E(op, errors.Errorf("no configuration by provided key: %s", configKey))
 	}
@@ -86,45 +82,86 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 	if err != nil {
 		return nil, err
 	}
+	if conf.CreateTopicsOnStart {
+		err = jb.createTopics(&conf, jb.kafkaProducer)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return jb, nil
 }
 
-func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
-	const op = errors.Op("new_amqp_consumer_from_pipeline")
-	// we need to obtain two parts of the amqp information here.
-	// firs part - address to connect, it is located in the global section under the amqp pluginName
-	// second part - queues and other pipeline information
+// FromPipeline initializes pipeline on-the-fly
+func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, _ cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
+	const op = errors.Op("new_kafka_consumer")
 
-	// only global section
-	if !cfg.Has(pluginName) {
-		return nil, errors.E(op, errors.Str("no global amqp configuration, global configuration should contain amqp addrs"))
+	tp := pipeline.String(topics, "default")
+	tp = strings.ReplaceAll(tp, " ", "")
+	tps := strings.Split(tp, ",")
+
+	var numOfPart int
+	var err error
+	nop := pipeline.String(numOfPartitions, "1")
+	numOfPart, err = strconv.Atoi(nop)
+	if err != nil {
+		// just use default value
+		numOfPart = 1
 	}
 
-	// PARSE CONFIGURATION -------
-	var conf config
-	err := cfg.UnmarshalKey(pluginName, &conf)
+	conf := &config{
+		Priority:            pipeline.Int(pri, 10),
+		Topics:              tps,
+		CreateTopicsOnStart: pipeline.Bool(createTopicsOnStart, false),
+		NumberOfPartitions:  numOfPart,
+	}
+
+	// PARSE CONFIGURATION START -------
+	topicsConf := pipeline.String(topicsConfig, "")
+	err = json.Unmarshal([]byte(topicsConf), &conf.TopicsConfig)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	err = conf.InitDefault()
+
+	consumerConf := pipeline.String(consumerConfig, "")
+	conf.KafkaConsumerConfigMap = &kafka.ConfigMap{}
+	err = json.Unmarshal([]byte(consumerConf), conf.KafkaConsumerConfigMap)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
-	// PARSE CONFIGURATION -------
+
+	producerConf := pipeline.String(producerConfig, "")
+	conf.KafkaProducerConfigMap = &kafka.ConfigMap{}
+	err = json.Unmarshal([]byte(producerConf), conf.KafkaProducerConfigMap)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
 
 	jb := &Consumer{
 		log:     log,
 		pq:      pq,
 		stopCh:  make(chan struct{}, 1),
 		delayed: utils.Int64(0),
+		cfg:     conf,
+	}
+
+	// start producer to push the jobs
+	jb.kafkaProducer, err = kafka.NewProducer(conf.KafkaProducerConfigMap)
+	if err != nil {
+		return nil, err
+	}
+	if conf.CreateTopicsOnStart {
+		err = jb.createTopics(conf, jb.kafkaProducer)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
 	}
 
 	return jb, nil
 }
 
 func (c *Consumer) Push(ctx context.Context, job *jobs.Job) error {
-	const op = errors.Op("rabbitmq_push")
+	const op = errors.Op("kafka_push")
 	// check if the pipeline registered
 
 	// load atomic value
@@ -188,22 +225,26 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 		return
 	}
 
+	// how is that possible, that listener is registered, but consumer is nil???
+	if c.kafkaConsumer == nil {
+		c.log.Error("consumer is nil, unable to resume")
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.kafkaConsumer != nil {
-		ktp := make(kafka.TopicPartitions, len(c.cfg.Topics))
+	ktp := make(kafka.TopicPartitions, 0, len(c.cfg.Topics))
 
-		for i := 0; i < len(c.cfg.Topics); i++ {
-			ktp = append(ktp, kafka.TopicPartition{
-				Topic: ptrTo(c.cfg.Topics[i]),
-			})
-		}
+	for i := 0; i < len(c.cfg.Topics); i++ {
+		ktp = append(ktp, kafka.TopicPartition{
+			Topic: ptrTo(c.cfg.Topics[i]),
+		})
+	}
 
-		err := c.kafkaConsumer.Pause(ktp)
-		if err != nil {
-			c.log.Error("failed to pause kafka listener", zap.Error(err))
-			return
-		}
+	err := c.kafkaConsumer.Pause(ktp)
+	if err != nil {
+		c.log.Error("failed to pause kafka listener", zap.Error(err))
+		return
 	}
 
 	// remove active listener
@@ -225,12 +266,24 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 		c.log.Warn("amqp listener is already in the active state")
 		return
 	}
-	// protect connection (redial)
+
+	// protect connection
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.kafkaConsumer != nil {
-		ktp := make(kafka.TopicPartitions, len(c.cfg.Topics))
+	// user called Resume, pipeline was registered from the PHP code
+	if c.kafkaConsumer == nil {
+		err := c.initConsumer(c.cfg.Topics)
+		if err != nil {
+			c.log.Error("unable to init consumer", zap.Error(err))
+			return
+		}
+
+		// start a listener
+		go c.listen()
+	} else {
+		// kafka consumer already initialized
+		ktp := make(kafka.TopicPartitions, 0, len(c.cfg.Topics))
 
 		for i := 0; i < len(c.cfg.Topics); i++ {
 			ktp = append(ktp, kafka.TopicPartition{
@@ -245,11 +298,16 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 		}
 	}
 
+	// increase number of listeners
 	atomic.StoreUint32(&c.listeners, 1)
+
 	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 }
 
 func (c *Consumer) Stop(context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	start := time.Now()
 	atomic.StoreUint32(&c.stopped, 1)
 	c.stopCh <- struct{}{}
@@ -258,11 +316,12 @@ func (c *Consumer) Stop(context.Context) error {
 
 	// close all
 	if c.kafkaConsumer != nil {
+		_ = c.kafkaConsumer.Unsubscribe()
 		_ = c.kafkaConsumer.Close()
 	}
 
 	if c.kafkaProducer != nil {
-		c.kafkaProducer.Flush(15 * 1000)
+		c.kafkaProducer.Flush(5 * 1000)
 		c.kafkaProducer.Close()
 	}
 
@@ -365,4 +424,39 @@ func (c *Consumer) handleItem(ctx context.Context, msg *Item) error {
 
 func ptrTo[T any](val T) *T {
 	return &val
+}
+
+func (c *Consumer) createTopics(conf *config, kp *kafka.Producer) error {
+	ac, err := kafka.NewAdminClientFromProducer(kp)
+	if err != nil {
+		return err
+	}
+
+	tspec := make([]kafka.TopicSpecification, 0, len(conf.Topics))
+
+	for i := 0; i < len(conf.Topics); i++ {
+		tspec = append(tspec, kafka.TopicSpecification{
+			Topic:             conf.Topics[i],
+			NumPartitions:     conf.NumberOfPartitions,
+			ReplicationFactor: 1,
+			Config:            conf.TopicsConfig,
+		})
+	}
+
+	ktopres, err := ac.CreateTopics(context.Background(), tspec)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(ktopres); i++ {
+		if ktopres[i].Error.Code() != kafka.ErrNoError {
+			if ktopres[i].Error.Code() == kafka.ErrTopicAlreadyExists {
+				// don't fail if the topic exists
+				continue
+			}
+			return ktopres[i].Error
+		}
+	}
+
+	return nil
 }
