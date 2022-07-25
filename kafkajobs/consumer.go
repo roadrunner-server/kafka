@@ -316,12 +316,18 @@ func (c *Consumer) Stop(context.Context) error {
 
 	// close all
 	if c.kafkaConsumer != nil {
-		_ = c.kafkaConsumer.Unsubscribe()
-		_ = c.kafkaConsumer.Close()
+		err := c.kafkaConsumer.Unsubscribe()
+		if err != nil {
+			c.log.Error("consumer unsubscribe", zap.Error(err))
+		}
+		err = c.kafkaConsumer.Close()
+		if err != nil {
+			c.log.Error("consumer close", zap.Error(err))
+		}
 	}
 
 	if c.kafkaProducer != nil {
-		c.kafkaProducer.Flush(5 * 1000)
+		_ = c.kafkaProducer.Flush(1 * 1000)
 		c.kafkaProducer.Close()
 	}
 
