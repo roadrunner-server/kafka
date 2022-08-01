@@ -2,74 +2,59 @@ package kafkajobs
 
 import (
 	"encoding/binary"
-	"sync/atomic"
+	"sync"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/Shopify/sarama"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
+	"github.com/roadrunner-server/sdk/v2/utils"
 	"go.uber.org/zap"
 )
 
 // blocking function
-func (c *Consumer) initConsumer(topics []string) error {
+func (c *Consumer) initConsumer() (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError, error) {
 	var err error
-	c.kafkaConsumer, err = kafka.NewConsumer(c.cfg.KafkaConsumerConfigMap)
+	c.kafkaConsumer, err = sarama.NewConsumerFromClient(c.kafkaClient)
 	if err != nil {
-		return err
-	}
-	err = c.kafkaConsumer.SubscribeTopics(topics, nil)
-	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	return nil
+	pConsumers := make([]sarama.PartitionConsumer, 0, 1)
+
+	for k, v := range c.cfg.topicPartitions {
+		for i := 0; i < len(v); i++ {
+			pc, err := c.kafkaConsumer.ConsumePartition(k, v[i], sarama.OffsetNewest)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			pConsumers = append(pConsumers, pc)
+		}
+	}
+
+	messagesCh := fanInConsumers(pConsumers)
+	errorsCh := fanInConsumersErrors(pConsumers)
+
+	return messagesCh, errorsCh, nil
 }
 
-func (c *Consumer) listen() {
+func (c *Consumer) listen(messagesCh chan *sarama.ConsumerMessage, errorsCh chan *sarama.ConsumerError) {
 	go func() {
 		for {
 			select {
 			case <-c.stopCh:
 				return
-			default:
-				// pipeline was stopped
-				if atomic.LoadUint32(&c.stopped) == 1 {
-					return
-				}
+			case msg := <-messagesCh:
+				item := c.fromConsumer(msg)
 
-				ev := c.kafkaConsumer.Poll(-1)
-				switch e := ev.(type) {
-				case kafka.AssignedPartitions:
-					c.log.Info("partition assigned", zap.String("partitions", e.String()))
-					continue
-				case kafka.RevokedPartitions:
-					c.log.Info("partition revoked", zap.String("partitions", e.String()))
-					continue
-				case *kafka.Message:
-					item := c.fromConsumer(e)
-
-					if item.Options.AutoAck {
-						_, err := c.kafkaConsumer.CommitMessage(e)
-						if err != nil {
-							c.log.Error("failed to commit message", zap.Error(err))
-							continue
-						}
-					}
-
-					c.pq.Insert(item)
-				case kafka.PartitionEOF:
-					c.log.Info("partition EOF", zap.String("topic", *e.Topic), zap.Int32("partition", e.Partition), zap.Error(e.Error))
-					continue
-					// redial or other type of error. We can continue our for loop
-				case kafka.Error:
-					c.log.Error("kafka consumer", zap.Error(e))
-					continue
-				}
+				c.pq.Insert(item)
+			case e := <-errorsCh:
+				c.log.Error("consume error", zap.Error(e.Err))
 			}
 		}
 	}()
 }
 
-func (c *Consumer) fromConsumer(msg *kafka.Message) *Item {
+func (c *Consumer) fromConsumer(msg *sarama.ConsumerMessage) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
@@ -86,7 +71,7 @@ func (c *Consumer) fromConsumer(msg *kafka.Message) *Item {
 	headers := make(map[string][]string)
 
 	for i := 0; i < len(msg.Headers); i++ {
-		switch msg.Headers[i].Key {
+		switch utils.AsString(msg.Headers[i].Key) {
 		case jobs.RRJob:
 			rrjob = string(msg.Headers[i].Value)
 		case jobs.RRPipeline:
@@ -96,7 +81,7 @@ func (c *Consumer) fromConsumer(msg *kafka.Message) *Item {
 		case jobs.RRAutoAck:
 			rrautoack = true
 		default:
-			headers[msg.Headers[i].Key] = []string{string(msg.Headers[i].Value)}
+			headers[string(msg.Headers[i].Key)] = []string{string(msg.Headers[i].Value)}
 		}
 	}
 
@@ -123,13 +108,62 @@ func (c *Consumer) fromConsumer(msg *kafka.Message) *Item {
 			AutoAck:  rrautoack,
 
 			// private
-			partition: msg.TopicPartition.Partition,
-			topic:     *msg.TopicPartition.Topic,
-			offset:    msg.TopicPartition.Offset,
-			consumer:  c.kafkaConsumer,
+			partition: msg.Partition,
+			topic:     msg.Topic,
+			offset:    msg.Offset,
 			producer:  c.kafkaProducer,
 			log:       c.log,
 		},
 	}
 	return item
+}
+
+func fanInConsumers(cons []sarama.PartitionConsumer) chan *sarama.ConsumerMessage { //nolint:dupl
+	out := make(chan *sarama.ConsumerMessage)
+	wg := sync.WaitGroup{}
+
+	output := func(c <-chan *sarama.ConsumerMessage) {
+		for msg := range c {
+			out <- msg
+		}
+		wg.Done()
+	}
+
+	wg.Add(len(cons))
+	for i := 0; i < len(cons); i++ {
+		ii := i
+		go output(cons[ii].Messages())
+	}
+
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	return out
+}
+
+func fanInConsumersErrors(cons []sarama.PartitionConsumer) chan *sarama.ConsumerError { //nolint:dupl
+	out := make(chan *sarama.ConsumerError)
+	wg := sync.WaitGroup{}
+
+	output := func(c <-chan *sarama.ConsumerError) {
+		for msg := range c {
+			out <- msg
+		}
+		wg.Done()
+	}
+
+	wg.Add(len(cons))
+	for i := 0; i < len(cons); i++ {
+		ii := i
+		go output(cons[ii].Errors())
+	}
+
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	return out
 }
