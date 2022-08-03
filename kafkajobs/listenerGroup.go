@@ -1,3 +1,4 @@
+//nolint:unused
 package kafkajobs
 
 import (
@@ -6,8 +7,7 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-type groupListener struct {
-}
+type groupListener struct{}
 
 func (gl *groupListener) Setup(sarama.ConsumerGroupSession) error {
 	return nil
@@ -17,7 +17,7 @@ func (gl *groupListener) Cleanup(sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (gl *groupListener) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (gl *groupListener) ConsumeClaim(sarama.ConsumerGroupSession, sarama.ConsumerGroupClaim) error {
 	return nil
 }
 

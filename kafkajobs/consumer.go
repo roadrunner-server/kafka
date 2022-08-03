@@ -3,6 +3,7 @@ package kafkajobs
 import (
 	"context"
 	"encoding/binary"
+	stderr "errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -30,7 +31,7 @@ type Consumer struct {
 	kafkaClient        sarama.Client
 	kafkaProducer      sarama.SyncProducer
 	kafkaConsumer      sarama.Consumer
-	kafkaGroupConsumer sarama.ConsumerGroup
+	kafkaGroupConsumer sarama.ConsumerGroup //nolint:unused
 
 	listeners uint32
 	delayed   *int64
@@ -78,14 +79,8 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 		cfg:     &conf,
 	}
 
-	sconfig := sarama.NewConfig()
-	sconfig.Producer.RequiredAcks = sarama.WaitForAll
-	sconfig.Producer.Retry.Max = 10
-	sconfig.Producer.Return.Successes = true
-	sconfig.ClientID = "roadrunner"
-
 	// start producer to push the jobs
-	jb.kafkaClient, err = sarama.NewClient(conf.Addresses, sconfig)
+	jb.kafkaClient, err = sarama.NewClient(conf.Addresses, conf.kafkaConfig)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -95,9 +90,11 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 		return nil, errors.E(op, err)
 	}
 
-	err = createTopics(&conf, jb.kafkaClient)
-	if err != nil {
-		log.Error("create topics/partitions (execution is not stopped)", zap.Error(err))
+	if conf.CreateTopic != nil {
+		err = createTopic(&conf, jb.kafkaClient)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
 	}
 
 	return jb, nil
@@ -113,8 +110,8 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Co
 	}
 
 	conf := &config{
-		Priority: pipeline.Int(pri, 10),
-		Topic:    pipeline.String(topics, "default"),
+		Priority: pipeline.Int(priorityKey, 10),
+		Topic:    pipeline.String(topicKey, "default"),
 	}
 
 	// PARSE CONFIGURATION START -------
@@ -375,7 +372,7 @@ func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 	return nil
 }
 
-func createTopics(conf *config, client sarama.Client) error {
+func createTopic(conf *config, client sarama.Client) error {
 	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
 		return err
@@ -383,9 +380,14 @@ func createTopics(conf *config, client sarama.Client) error {
 
 	err = admin.CreateTopic(conf.Topic, &sarama.TopicDetail{
 		NumPartitions:     int32(len(conf.PartitionsOffsets)),
-		ReplicationFactor: conf.ReplicationFactory,
+		ReplicationFactor: conf.CreateTopic.ReplicationFactory,
+		ReplicaAssignment: conf.CreateTopic.ReplicaAssignment,
+		ConfigEntries:     conf.CreateTopic.ConfigEntries,
 	}, false)
 	if err != nil {
+		if stderr.Is(err, sarama.ErrTopicAlreadyExists) {
+			return nil
+		}
 		return err
 	}
 
