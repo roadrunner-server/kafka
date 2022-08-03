@@ -3,15 +3,12 @@ package kafkajobs
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
-	"strconv"
-	"strings"
+	stderr "errors"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/goccy/go-json"
+	"github.com/Shopify/sarama"
 	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
 	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
@@ -21,6 +18,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const pluginName string = "kafka"
+
 type Consumer struct {
 	mu       sync.Mutex
 	log      *zap.Logger
@@ -29,8 +28,10 @@ type Consumer struct {
 	cfg      *config
 
 	// kafka config
-	kafkaProducer *kafka.Producer
-	kafkaConsumer *kafka.Consumer
+	kafkaClient        sarama.Client
+	kafkaProducer      sarama.SyncProducer
+	kafkaConsumer      sarama.Consumer
+	kafkaGroupConsumer sarama.ConsumerGroup //nolint:unused
 
 	listeners uint32
 	delayed   *int64
@@ -42,23 +43,24 @@ type Consumer struct {
 func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_kafka_consumer")
 
+	// no global config
+	if !cfg.Has(pluginName) {
+		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/plugins-jobs/2.x/en"))
+	}
+
+	// no local config
 	if !cfg.Has(configKey) {
 		return nil, errors.E(op, errors.Errorf("no configuration by provided key: %s", configKey))
 	}
 
 	// PARSE CONFIGURATION START -------
 	var conf config
-	err := cfg.UnmarshalKey(configKey, &conf)
+	err := cfg.UnmarshalKey(pluginName, &conf)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	err = cfg.UnmarshalKey(fmt.Sprintf("%s.consumer_config", configKey), &conf.KafkaConsumerConfigMap)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	err = cfg.UnmarshalKey(fmt.Sprintf("%s.producer_config", configKey), &conf.KafkaProducerConfigMap)
+	err = cfg.UnmarshalKey(configKey, &conf)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -78,14 +80,20 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 	}
 
 	// start producer to push the jobs
-	jb.kafkaProducer, err = kafka.NewProducer(conf.KafkaProducerConfigMap)
+	jb.kafkaClient, err = sarama.NewClient(conf.Addresses, conf.kafkaConfig)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
-	if conf.CreateTopicsOnStart {
-		err = jb.createTopics(&conf, jb.kafkaProducer)
+
+	jb.kafkaProducer, err = sarama.NewSyncProducerFromClient(jb.kafkaClient)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	if conf.CreateTopic != nil {
+		err = createTopic(&conf, jb.kafkaClient)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 	}
 
@@ -93,46 +101,21 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 }
 
 // FromPipeline initializes pipeline on-the-fly
-func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, _ cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
+func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_kafka_consumer")
 
-	tp := pipeline.String(topics, "default")
-	tp = strings.ReplaceAll(tp, " ", "")
-	tps := strings.Split(tp, ",")
-
-	var numOfPart int
-	var err error
-	nop := pipeline.String(numOfPartitions, "1")
-	numOfPart, err = strconv.Atoi(nop)
-	if err != nil {
-		// just use default value
-		numOfPart = 1
+	// no global config
+	if !cfg.Has(pluginName) {
+		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/plugins-jobs/2.x/en"))
 	}
 
 	conf := &config{
-		Priority:            pipeline.Int(pri, 10),
-		Topics:              tps,
-		CreateTopicsOnStart: pipeline.Bool(createTopicsOnStart, false),
-		NumberOfPartitions:  numOfPart,
+		Priority: pipeline.Int(priorityKey, 10),
+		Topic:    pipeline.String(topicKey, "default"),
 	}
 
 	// PARSE CONFIGURATION START -------
-	topicsConf := pipeline.String(topicsConfig, "")
-	err = json.Unmarshal([]byte(topicsConf), &conf.TopicsConfig)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	consumerConf := pipeline.String(consumerConfig, "")
-	conf.KafkaConsumerConfigMap = &kafka.ConfigMap{}
-	err = json.Unmarshal([]byte(consumerConf), conf.KafkaConsumerConfigMap)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	producerConf := pipeline.String(producerConfig, "")
-	conf.KafkaProducerConfigMap = &kafka.ConfigMap{}
-	err = json.Unmarshal([]byte(producerConf), conf.KafkaProducerConfigMap)
+	err := cfg.UnmarshalKey(pluginName, &conf)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -146,15 +129,15 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, _ cfgPlugin.Conf
 	}
 
 	// start producer to push the jobs
-	jb.kafkaProducer, err = kafka.NewProducer(conf.KafkaProducerConfigMap)
+	sconfig := sarama.NewConfig()
+	sconfig.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
+	sconfig.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
+	sconfig.Producer.Return.Successes = false
+
+	// start producer to push the jobs
+	jb.kafkaProducer, err = sarama.NewSyncProducer(conf.Addresses, sconfig)
 	if err != nil {
 		return nil, err
-	}
-	if conf.CreateTopicsOnStart {
-		err = jb.createTopics(conf, jb.kafkaProducer)
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
 	}
 
 	return jb, nil
@@ -185,7 +168,7 @@ func (c *Consumer) Register(_ context.Context, p *pipeline.Pipeline) error {
 
 func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	start := time.Now()
-	const op = errors.Op("rabbit_run")
+	const op = errors.Op("kafka_run")
 
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
 	if pipe.Name() != p.Name() {
@@ -194,13 +177,13 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	err := c.initConsumer(c.cfg.Topics)
+	pConsumer, err := c.initConsumer()
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	// start a listener
-	go c.listen()
+	go c.listen(pConsumer)
 
 	atomic.StoreUint32(&c.listeners, 1)
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
@@ -233,19 +216,8 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	ktp := make(kafka.TopicPartitions, 0, len(c.cfg.Topics))
 
-	for i := 0; i < len(c.cfg.Topics); i++ {
-		ktp = append(ktp, kafka.TopicPartition{
-			Topic: ptrTo(c.cfg.Topics[i]),
-		})
-	}
-
-	err := c.kafkaConsumer.Pause(ktp)
-	if err != nil {
-		c.log.Error("failed to pause kafka listener", zap.Error(err))
-		return
-	}
+	c.kafkaConsumer.Pause(c.cfg.topicPartitions)
 
 	// remove active listener
 	atomic.AddUint32(&c.listeners, ^uint32(0))
@@ -273,29 +245,17 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 
 	// user called Resume, pipeline was registered from the PHP code
 	if c.kafkaConsumer == nil {
-		err := c.initConsumer(c.cfg.Topics)
+		pConsumer, err := c.initConsumer()
 		if err != nil {
 			c.log.Error("unable to init consumer", zap.Error(err))
 			return
 		}
 
 		// start a listener
-		go c.listen()
+		go c.listen(pConsumer)
 	} else {
 		// kafka consumer already initialized
-		ktp := make(kafka.TopicPartitions, 0, len(c.cfg.Topics))
-
-		for i := 0; i < len(c.cfg.Topics); i++ {
-			ktp = append(ktp, kafka.TopicPartition{
-				Topic: ptrTo(c.cfg.Topics[i]),
-			})
-		}
-
-		err := c.kafkaConsumer.Resume(ktp)
-		if err != nil {
-			c.log.Error("failed to resume kafka listener", zap.Error(err))
-			return
-		}
+		c.kafkaConsumer.Resume(c.cfg.topicPartitions)
 	}
 
 	// increase number of listeners
@@ -316,19 +276,22 @@ func (c *Consumer) Stop(context.Context) error {
 
 	// close all
 	if c.kafkaConsumer != nil {
-		err := c.kafkaConsumer.Unsubscribe()
-		if err != nil {
-			c.log.Error("consumer unsubscribe", zap.Error(err))
-		}
-		err = c.kafkaConsumer.Close()
+		err := c.kafkaConsumer.Close()
 		if err != nil {
 			c.log.Error("consumer close", zap.Error(err))
 		}
 	}
 
 	if c.kafkaProducer != nil {
-		_ = c.kafkaProducer.Flush(1 * 1000)
-		c.kafkaProducer.Close()
+		err := c.kafkaProducer.Close()
+		if err != nil {
+			c.log.Error("producer close", zap.Error(err))
+		}
+	}
+
+	err := c.kafkaClient.Close()
+	if err != nil {
+		c.log.Error("producer close", zap.Error(err))
 	}
 
 	c.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
@@ -336,20 +299,17 @@ func (c *Consumer) Stop(context.Context) error {
 }
 
 // handleItem
-func (c *Consumer) handleItem(ctx context.Context, msg *Item) error {
+func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
 
-	// confirm channel
-	eventCh := make(chan kafka.Event, 1)
-
-	kh := make([]kafka.Header, 0, len(msg.Headers))
+	kh := make([]sarama.RecordHeader, 0, len(msg.Headers))
 
 	// only 1 header per key is supported
 	// RR_HEADERS
 	for k, v := range msg.Headers {
 		if len(v) > 0 {
-			kh = append(kh, kafka.Header{
-				Key:   k,
+			kh = append(kh, sarama.RecordHeader{
+				Key:   utils.AsBytes(k),
 				Value: utils.AsBytes(v[0]),
 			})
 		}
@@ -365,103 +325,70 @@ func (c *Consumer) handleItem(ctx context.Context, msg *Item) error {
 	*/
 
 	// RRJob
-	kh = append(kh, kafka.Header{
-		Key:   jobs.RRJob,
-		Value: []byte(msg.Job),
+	kh = append(kh, sarama.RecordHeader{
+		Key:   utils.AsBytes(jobs.RRJob),
+		Value: utils.AsBytes(msg.Job),
 	})
 	// RRPipeline
-	kh = append(kh, kafka.Header{
-		Key:   jobs.RRPipeline,
-		Value: []byte(msg.Options.Pipeline),
+	kh = append(kh, sarama.RecordHeader{
+		Key:   utils.AsBytes(jobs.RRPipeline),
+		Value: utils.AsBytes(msg.Options.Pipeline),
 	})
 	// RRPriority
-	pri := make([]byte, 8)
-	binary.LittleEndian.PutUint64(pri, uint64(msg.Priority()))
-	kh = append(kh, kafka.Header{
-		Key:   jobs.RRPriority,
-		Value: pri,
+	rrpri := make([]byte, 8)
+	binary.LittleEndian.PutUint64(rrpri, uint64(msg.Priority()))
+	kh = append(kh, sarama.RecordHeader{
+		Key:   utils.AsBytes(jobs.RRPriority),
+		Value: rrpri,
 	})
 
 	// put auto_ack only if exists
 	if msg.Options.AutoAck {
 		ack := make([]byte, 1)
 		ack[0] = 1
-		kh = append(kh, kafka.Header{
-			Key:   jobs.RRAutoAck,
+		kh = append(kh, sarama.RecordHeader{
+			Key:   utils.AsBytes(jobs.RRAutoAck),
 			Value: ack,
 		})
 	}
 
-	err := c.kafkaProducer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{
-			Topic:     ptrTo(msg.Options.topic),
-			Partition: msg.Options.partition,
-			Offset:    msg.Options.offset,
-			Metadata:  ptrTo(msg.Options.metadata),
-		},
-		Value: msg.Body(),
-		// Job ID
-		// RRID       string = "rr_id"
-		Key:           utils.AsBytes(msg.ID()),
-		Timestamp:     time.Now(),
-		TimestampType: kafka.TimestampCreateTime,
-		Headers:       kh,
-	}, eventCh)
+	id := []byte(msg.ID())
+	part, off, err := c.kafkaProducer.SendMessage(&sarama.ProducerMessage{
+		Topic:     msg.Options.topic,
+		Key:       JobKVEncoder{value: id},
+		Value:     JobKVEncoder{value: msg.Body()},
+		Headers:   kh,
+		Metadata:  msg.Options.metadata,
+		Offset:    msg.Options.offset,
+		Partition: msg.Options.partition,
+		Timestamp: time.Time{},
+	})
 	if err != nil {
 		return errors.E(op, err)
 	}
 
-	select {
-	case e := <-eventCh:
-		switch ev := e.(type) { //nolint:gocritic
-		case *kafka.Message:
-			if ev.TopicPartition.Error != nil {
-				return errors.Errorf("delivery failed: %v", ev.TopicPartition.Error)
-			}
-
-			c.log.Debug("message delivered", zap.String("topic", *ev.TopicPartition.Topic))
-		}
-	case <-ctx.Done():
-		return errors.E(errors.TimeOut, ctx.Err())
-	}
+	c.log.Debug("message sent", zap.Int32("partition", part), zap.Int64("offset", off))
 
 	return nil
 }
 
-func ptrTo[T any](val T) *T {
-	return &val
-}
-
-func (c *Consumer) createTopics(conf *config, kp *kafka.Producer) error {
-	ac, err := kafka.NewAdminClientFromProducer(kp)
+func createTopic(conf *config, client sarama.Client) error {
+	admin, err := sarama.NewClusterAdminFromClient(client)
 	if err != nil {
 		return err
 	}
 
-	tspec := make([]kafka.TopicSpecification, 0, len(conf.Topics))
-
-	for i := 0; i < len(conf.Topics); i++ {
-		tspec = append(tspec, kafka.TopicSpecification{
-			Topic:             conf.Topics[i],
-			NumPartitions:     conf.NumberOfPartitions,
-			ReplicationFactor: 1,
-			Config:            conf.TopicsConfig,
-		})
-	}
-
-	ktopres, err := ac.CreateTopics(context.Background(), tspec)
+	err = admin.CreateTopic(conf.Topic, &sarama.TopicDetail{
+		NumPartitions:     int32(len(conf.PartitionsOffsets)),
+		ReplicationFactor: conf.CreateTopic.ReplicationFactory,
+		ReplicaAssignment: conf.CreateTopic.ReplicaAssignment,
+		ConfigEntries:     conf.CreateTopic.ConfigEntries,
+	}, false)
 	if err != nil {
-		return err
-	}
-
-	for i := 0; i < len(ktopres); i++ {
-		if ktopres[i].Error.Code() != kafka.ErrNoError {
-			if ktopres[i].Error.Code() == kafka.ErrTopicAlreadyExists {
-				// don't fail if the topic exists
-				continue
-			}
-			return ktopres[i].Error
+		if stderr.Is(err, sarama.ErrTopicAlreadyExists) {
+			return nil
 		}
+		return err
 	}
 
 	return nil
