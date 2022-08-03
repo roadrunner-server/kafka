@@ -3,7 +3,7 @@ module github.com/roadrunner-server/kafka/v2
 go 1.18
 
 require (
-	github.com/confluentinc/confluent-kafka-go v1.9.1
+	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/goccy/go-json v0.9.10
 	github.com/roadrunner-server/api/v2 v2.20.0
 	github.com/roadrunner-server/errors v1.1.2
