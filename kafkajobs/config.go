@@ -81,7 +81,7 @@ func (c *config) InitDefault() error {
 
 	if c.CreateTopic != nil {
 		if c.CreateTopic.ReplicationFactory == 0 {
-			c.CreateTopic.ReplicationFactory = 2
+			c.CreateTopic.ReplicationFactory = 1
 		}
 	}
 

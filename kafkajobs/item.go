@@ -57,7 +57,7 @@ type Options struct {
 	metadata  string
 	partition int32
 	offset    int64
-	producer  sarama.SyncProducer
+	producer  sarama.AsyncProducer
 }
 
 // DelayDuration returns delay duration in a form of time.Duration.
@@ -190,7 +190,7 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	}
 
 	id := []byte(msg.ID())
-	part, off, err := i.Options.producer.SendMessage(&sarama.ProducerMessage{
+	i.Options.producer.Input() <- &sarama.ProducerMessage{
 		Topic:     msg.Options.topic,
 		Key:       JobKVEncoder{value: id},
 		Value:     JobKVEncoder{value: msg.Body()},
@@ -199,12 +199,14 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 		Offset:    msg.Options.offset,
 		Partition: msg.Options.partition,
 		Timestamp: time.Time{},
-	})
-	if err != nil {
-		return errors.E(op, err)
 	}
 
-	i.Options.log.Debug("message requeue", zap.Int32("partition", part), zap.Int64("offset", off))
+	select {
+	case s := <-i.Options.producer.Successes():
+		i.Options.log.Debug("message requeue", zap.Int32("partition", s.Partition), zap.Int64("offset", s.Offset))
+	case e := <-i.Options.producer.Errors():
+		return errors.E(op, e.Err)
+	}
 
 	return nil
 }

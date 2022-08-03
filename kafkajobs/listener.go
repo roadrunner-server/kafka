@@ -48,11 +48,18 @@ func (c *Consumer) listen(pConsumers []sarama.PartitionConsumer) {
 				}
 				return
 			case msg := <-messagesCh:
+				if msg == nil {
+					c.log.Debug("nil message")
+					continue
+				}
+
 				item := c.fromConsumer(msg)
 
 				c.pq.Insert(item)
 			case e := <-errorsCh:
-				c.log.Error("consume error", zap.Error(e.Err))
+				if e != nil {
+					c.log.Error("consume error", zap.Error(e.Err))
+				}
 			}
 		}
 	}()

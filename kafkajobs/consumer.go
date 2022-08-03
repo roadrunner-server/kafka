@@ -29,7 +29,7 @@ type Consumer struct {
 
 	// kafka config
 	kafkaClient        sarama.Client
-	kafkaProducer      sarama.SyncProducer
+	kafkaProducer      sarama.AsyncProducer
 	kafkaConsumer      sarama.Consumer
 	kafkaGroupConsumer sarama.ConsumerGroup //nolint:unused
 
@@ -85,7 +85,7 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 		return nil, errors.E(op, err)
 	}
 
-	jb.kafkaProducer, err = sarama.NewSyncProducerFromClient(jb.kafkaClient)
+	jb.kafkaProducer, err = sarama.NewAsyncProducerFromClient(jb.kafkaClient)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -135,7 +135,7 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Co
 	sconfig.Producer.Return.Successes = false
 
 	// start producer to push the jobs
-	jb.kafkaProducer, err = sarama.NewSyncProducer(conf.Addresses, sconfig)
+	jb.kafkaProducer, err = sarama.NewAsyncProducer(conf.Addresses, sconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +353,7 @@ func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 	}
 
 	id := []byte(msg.ID())
-	part, off, err := c.kafkaProducer.SendMessage(&sarama.ProducerMessage{
+	c.kafkaProducer.Input() <- &sarama.ProducerMessage{
 		Topic:     msg.Options.topic,
 		Key:       JobKVEncoder{value: id},
 		Value:     JobKVEncoder{value: msg.Body()},
@@ -362,12 +362,14 @@ func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 		Offset:    msg.Options.offset,
 		Partition: msg.Options.partition,
 		Timestamp: time.Time{},
-	})
-	if err != nil {
-		return errors.E(op, err)
 	}
 
-	c.log.Debug("message sent", zap.Int32("partition", part), zap.Int64("offset", off))
+	select {
+	case s := <-c.kafkaProducer.Successes():
+		c.log.Debug("message sent", zap.Int32("partition", s.Partition), zap.Int64("offset", s.Offset))
+	case e := <-c.kafkaProducer.Errors():
+		return errors.E(op, e.Err)
+	}
 
 	return nil
 }
