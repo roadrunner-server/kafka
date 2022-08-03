@@ -3,7 +3,6 @@ package kafkajobs
 import (
 	"context"
 	"encoding/binary"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,9 +27,10 @@ type Consumer struct {
 	cfg      *config
 
 	// kafka config
-	kafkaProducer sarama.SyncProducer
-	kafkaConsumer sarama.Consumer
-	kafkaClient   sarama.Client
+	kafkaClient        sarama.Client
+	kafkaProducer      sarama.SyncProducer
+	kafkaConsumer      sarama.Consumer
+	kafkaGroupConsumer sarama.ConsumerGroup
 
 	listeners uint32
 	delayed   *int64
@@ -79,8 +79,8 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 	}
 
 	sconfig := sarama.NewConfig()
-	sconfig.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-	sconfig.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
+	sconfig.Producer.RequiredAcks = sarama.WaitForAll
+	sconfig.Producer.Retry.Max = 10
 	sconfig.Producer.Return.Successes = true
 	sconfig.ClientID = "roadrunner"
 
@@ -95,7 +95,10 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 		return nil, errors.E(op, err)
 	}
 
-	_ = createTopics(&conf, jb.kafkaClient)
+	err = createTopics(&conf, jb.kafkaClient)
+	if err != nil {
+		log.Error("create topics/partitions (execution is not stopped)", zap.Error(err))
+	}
 
 	return jb, nil
 }
@@ -109,13 +112,9 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Co
 		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/plugins-jobs/2.x/en"))
 	}
 
-	tp := pipeline.String(topics, "default")
-	tp = strings.ReplaceAll(tp, " ", "")
-	tps := strings.Split(tp, ",")
-
 	conf := &config{
 		Priority: pipeline.Int(pri, 10),
-		Topics:   tps,
+		Topic:    pipeline.String(topics, "default"),
 	}
 
 	// PARSE CONFIGURATION START -------
@@ -172,7 +171,7 @@ func (c *Consumer) Register(_ context.Context, p *pipeline.Pipeline) error {
 
 func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	start := time.Now()
-	const op = errors.Op("rabbit_run")
+	const op = errors.Op("kafka_run")
 
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
 	if pipe.Name() != p.Name() {
@@ -181,13 +180,13 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	msgCh, errCh, err := c.initConsumer()
+	pConsumer, err := c.initConsumer()
 	if err != nil {
 		return errors.E(op, err)
 	}
 
 	// start a listener
-	go c.listen(msgCh, errCh)
+	go c.listen(pConsumer)
 
 	atomic.StoreUint32(&c.listeners, 1)
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
@@ -249,14 +248,14 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 
 	// user called Resume, pipeline was registered from the PHP code
 	if c.kafkaConsumer == nil {
-		msgCh, errCh, err := c.initConsumer()
+		pConsumer, err := c.initConsumer()
 		if err != nil {
 			c.log.Error("unable to init consumer", zap.Error(err))
 			return
 		}
 
 		// start a listener
-		go c.listen(msgCh, errCh)
+		go c.listen(pConsumer)
 	} else {
 		// kafka consumer already initialized
 		c.kafkaConsumer.Resume(c.cfg.topicPartitions)
@@ -291,6 +290,11 @@ func (c *Consumer) Stop(context.Context) error {
 		if err != nil {
 			c.log.Error("producer close", zap.Error(err))
 		}
+	}
+
+	err := c.kafkaClient.Close()
+	if err != nil {
+		c.log.Error("producer close", zap.Error(err))
 	}
 
 	c.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
@@ -377,14 +381,12 @@ func createTopics(conf *config, client sarama.Client) error {
 		return err
 	}
 
-	for i := 0; i < len(conf.Topics); i++ {
-		_ = admin.CreateTopic(conf.Topics[i], &sarama.TopicDetail{
-			NumPartitions:     1,
-			ReplicationFactor: 1,
-			ReplicaAssignment: nil,
-			ConfigEntries:     nil,
-		}, false)
-		_ = admin.CreatePartitions(conf.Topics[i], 1, nil, false)
+	err = admin.CreateTopic(conf.Topic, &sarama.TopicDetail{
+		NumPartitions:     int32(len(conf.PartitionsOffsets)),
+		ReplicationFactor: conf.ReplicationFactory,
+	}, false)
+	if err != nil {
+		return err
 	}
 
 	return nil

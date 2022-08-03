@@ -11,37 +11,41 @@ import (
 )
 
 // blocking function
-func (c *Consumer) initConsumer() (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError, error) {
+func (c *Consumer) initConsumer() ([]sarama.PartitionConsumer, error) {
 	var err error
 	c.kafkaConsumer, err = sarama.NewConsumerFromClient(c.kafkaClient)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	pConsumers := make([]sarama.PartitionConsumer, 0, 1)
 
+	// we have only 1 topic (rustatian)
 	for k, v := range c.cfg.topicPartitions {
 		for i := 0; i < len(v); i++ {
-			pc, err := c.kafkaConsumer.ConsumePartition(k, v[i], sarama.OffsetNewest)
-			if err != nil {
-				return nil, nil, err
+			pc, errK := c.kafkaConsumer.ConsumePartition(k, v[i], sarama.OffsetNewest)
+			if errK != nil {
+				return nil, errK
 			}
 
 			pConsumers = append(pConsumers, pc)
 		}
 	}
 
+	return pConsumers, nil
+}
+
+func (c *Consumer) listen(pConsumers []sarama.PartitionConsumer) {
 	messagesCh := fanInConsumers(pConsumers)
 	errorsCh := fanInConsumersErrors(pConsumers)
 
-	return messagesCh, errorsCh, nil
-}
-
-func (c *Consumer) listen(messagesCh chan *sarama.ConsumerMessage, errorsCh chan *sarama.ConsumerError) {
 	go func() {
 		for {
 			select {
 			case <-c.stopCh:
+				for i := 0; i < len(pConsumers); i++ {
+					pConsumers[i].AsyncClose()
+				}
 				return
 			case msg := <-messagesCh:
 				item := c.fromConsumer(msg)
