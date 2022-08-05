@@ -154,7 +154,6 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 		RRPipeline string = "rr_pipeline"
 		RRDelay    string = "rr_delay"
 		RRPriority string = "rr_priority"
-		RRAutoAck  string = "rr_auto_ack"
 	*/
 
 	// RRJob
@@ -174,16 +173,6 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 		Key:   utils.AsBytes(jobs.RRPriority),
 		Value: pri,
 	})
-
-	// put auto_ack only if exists
-	if msg.Options.AutoAck {
-		ack := make([]byte, 1)
-		ack[0] = 1
-		kh = append(kh, sarama.RecordHeader{
-			Key:   utils.AsBytes(jobs.RRAutoAck),
-			Value: ack,
-		})
-	}
 
 	if i.Options.producer == nil {
 		return errors.E(op, errors.Str("can't requeue the message, producer is not active"))

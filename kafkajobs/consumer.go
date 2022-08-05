@@ -356,16 +356,6 @@ func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 		Value: rrpri,
 	})
 
-	// put auto_ack only if exists
-	if msg.Options.AutoAck {
-		ack := make([]byte, 1)
-		ack[0] = 1
-		kh = append(kh, sarama.RecordHeader{
-			Key:   utils.AsBytes(jobs.RRAutoAck),
-			Value: ack,
-		})
-	}
-
 	id := []byte(msg.ID())
 	c.kafkaProducer.Input() <- &sarama.ProducerMessage{
 		Topic:     msg.Options.topic,

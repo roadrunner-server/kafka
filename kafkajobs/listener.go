@@ -87,7 +87,6 @@ func (c *Consumer) fromConsumer(msg *sarama.ConsumerMessage) *Item {
 	var rrjob string
 	var rrpipeline string
 	var rrpriority int64
-	var rrautoack bool
 	headers := make(map[string][]string)
 
 	for i := 0; i < len(msg.Headers); i++ {
@@ -98,8 +97,6 @@ func (c *Consumer) fromConsumer(msg *sarama.ConsumerMessage) *Item {
 			rrpipeline = string(msg.Headers[i].Value)
 		case jobs.RRPriority:
 			rrpriority = int64(binary.LittleEndian.Uint64(msg.Headers[i].Value))
-		case jobs.RRAutoAck:
-			rrautoack = true
 		default:
 			headers[string(msg.Headers[i].Key)] = []string{string(msg.Headers[i].Value)}
 		}
@@ -125,7 +122,6 @@ func (c *Consumer) fromConsumer(msg *sarama.ConsumerMessage) *Item {
 		Options: &Options{
 			Priority: rrpriority,
 			Pipeline: rrpipeline,
-			AutoAck:  rrautoack,
 
 			// private
 			partition: msg.Partition,
