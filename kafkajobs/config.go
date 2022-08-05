@@ -351,7 +351,7 @@ func parseConfig(conf *config, pipe *pipeline.Pipeline) (*sarama.Config, error) 
 		WaitForAll RequiredAcks = -1
 	*/
 	if v := pipe.String(requiredAcksKey, ""); v != "" {
-		val, err := strconv.ParseInt(v, 10, 64)
+		val, err := strconv.ParseInt(v, 10, 16)
 		if err != nil {
 			return nil, err
 		}
