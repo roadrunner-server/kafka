@@ -109,13 +109,14 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Co
 		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/plugins-jobs/2.x/en"))
 	}
 
-	conf := &config{
-		Priority: pipeline.Int(priorityKey, 10),
-		Topic:    pipeline.String(topicKey, "default"),
-	}
-
+	var conf *config
 	// PARSE CONFIGURATION START -------
 	err := cfg.UnmarshalKey(pluginName, &conf)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	sc, err := parseConfig(conf, pipeline)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -128,16 +129,29 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Co
 		cfg:     conf,
 	}
 
-	// start producer to push the jobs
-	sconfig := sarama.NewConfig()
-	sconfig.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-	sconfig.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
-	sconfig.Producer.Return.Successes = false
+	jb.kafkaClient, err = sarama.NewClient(conf.Addresses, sc)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
 
 	// start producer to push the jobs
-	jb.kafkaProducer, err = sarama.NewAsyncProducer(conf.Addresses, sconfig)
+	jb.kafkaProducer, err = sarama.NewAsyncProducerFromClient(jb.kafkaClient)
 	if err != nil {
 		return nil, err
+	}
+
+	if conf.CreateTopic != nil {
+		// in the FromPipeline method we allocate an conf.CreateTopic, so, to ensure that we don't need to create a topic
+		// we need to check all the values
+		if conf.CreateTopic.ReplicationFactory == 0 &&
+			conf.CreateTopic.ReplicaAssignment == nil &&
+			conf.CreateTopic.ConfigEntries == nil {
+			return jb, nil
+		}
+		err = createTopic(conf, jb.kafkaClient)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
 	}
 
 	return jb, nil
@@ -190,7 +204,7 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	return nil
 }
 
-func (c *Consumer) State(ctx context.Context) (*jobs.State, error) {
+func (c *Consumer) State(context.Context) (*jobs.State, error) {
 	return nil, nil
 }
 
@@ -361,13 +375,14 @@ func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 		Metadata:  msg.Options.metadata,
 		Offset:    msg.Options.offset,
 		Partition: msg.Options.partition,
-		Timestamp: time.Time{},
+		Timestamp: time.Now(),
 	}
 
 	select {
 	case s := <-c.kafkaProducer.Successes():
 		c.log.Debug("message sent", zap.Int32("partition", s.Partition), zap.Int64("offset", s.Offset))
 	case e := <-c.kafkaProducer.Errors():
+		c.log.Error("producer error", zap.Any("message", e.Msg), zap.Error(e.Err))
 		return errors.E(op, e.Err)
 	}
 

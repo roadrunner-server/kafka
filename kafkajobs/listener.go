@@ -6,6 +6,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
+	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v2/utils"
 	"go.uber.org/zap"
 )
@@ -23,13 +24,21 @@ func (c *Consumer) initConsumer() ([]sarama.PartitionConsumer, error) {
 	// we have only 1 topic (rustatian)
 	for k, v := range c.cfg.topicPartitions {
 		for i := 0; i < len(v); i++ {
-			pc, errK := c.kafkaConsumer.ConsumePartition(k, v[i], sarama.OffsetNewest)
+			pc, errK := c.kafkaConsumer.ConsumePartition(k, v[i], c.cfg.PartitionsOffsets[v[i]])
 			if errK != nil {
 				return nil, errK
 			}
 
 			pConsumers = append(pConsumers, pc)
 		}
+	}
+
+	if len(pConsumers) == 0 {
+		/*
+			%v	the value in a default format
+				when printing structs, the plus flag (%+v) adds field names
+		*/
+		return nil, errors.Errorf("no consume configuration provided, please, check the `partitions_offsets` key: %+v", c.cfg.PartitionsOffsets)
 	}
 
 	return pConsumers, nil
