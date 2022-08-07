@@ -2,6 +2,7 @@ package kafkajobs
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -28,9 +29,9 @@ const (
 	heartbeatIntervalKey string = "heartbeat_interval"
 
 	// create topic opts
-	replicationFactoryKey string = "replication_factory"
-	replicaAssignmentKey  string = "replica_assignment"
-	configEntriesKey      string = "config_entries"
+	replicationFactorKey string = "replication_factor"
+	replicaAssignmentKey string = "replica_assignment"
+	configEntriesKey     string = "config_entries"
 
 	// producer opts
 	maxMessageSizeKey   string = "max_message_bytes"
@@ -59,7 +60,6 @@ type config struct {
 	// kafka local
 	Priority          int             `mapstructure:"priority"`
 	Topic             string          `mapstructure:"topic"`
-	CreateTopic       *CreateTopics   `mapstructure:"create_topics"`
 	PartitionsOffsets map[int32]int64 `mapstructure:"partitions_offsets"`
 	GroupID           string          `mapstructure:"group_id"`
 	MaxOpenRequests   int             `mapstructure:"max_open_requests"`
@@ -69,9 +69,9 @@ type config struct {
 	KafkaVersion string `mapstructure:"kafka_version"`
 
 	// consumer, producer and topics options
-	ProducerOpts  *ProducerOpts      `mapstructure:"producer_options"`
-	ConsumerOpts  *ConsumerOpts      `mapstructure:"consumer_options"`
-	TopicsOptions map[string]*string `mapstructure:"topic_options"`
+	CreateTopic  *CreateTopics `mapstructure:"create_topics"`
+	ProducerOpts *ProducerOpts `mapstructure:"producer_options"`
+	ConsumerOpts *ConsumerOpts `mapstructure:"consumer_options"`
 
 	// private, combinations of partitions per-topic
 	topicPartitions map[string][]int32
@@ -80,9 +80,9 @@ type config struct {
 }
 
 type CreateTopics struct {
-	ReplicationFactory int16              `mapstructure:"replication_factory"`
-	ReplicaAssignment  map[int32][]int32  `mapstructure:"replica_assignment"`
-	ConfigEntries      map[string]*string `mapstructure:"config_entries"`
+	ReplicationFactor int16              `mapstructure:"replication_factor"`
+	ReplicaAssignment map[int32][]int32  `mapstructure:"replica_assignment"`
+	ConfigEntries     map[string]*string `mapstructure:"config_entries"`
 }
 
 type ProducerOpts struct {
@@ -109,8 +109,13 @@ func (c *config) InitDefault() error {
 	}
 
 	if c.CreateTopic != nil {
-		if c.CreateTopic.ReplicationFactory == 0 {
-			c.CreateTopic.ReplicationFactory = 1
+		if c.CreateTopic.ReplicationFactor == 0 {
+			c.CreateTopic.ReplicationFactor = 1
+		}
+
+		for k, v := range c.CreateTopic.ConfigEntries {
+			delete(c.CreateTopic.ConfigEntries, k)
+			c.CreateTopic.ConfigEntries[strings.ReplaceAll(k, ":", ".")] = v
 		}
 	}
 
@@ -268,18 +273,18 @@ func parseConfig(conf *config, pipe *pipeline.Pipeline) (*sarama.Config, error) 
 
 	// create topic options
 	conf.CreateTopic = &CreateTopics{
-		ReplicationFactory: 0,
-		ReplicaAssignment:  nil,
-		ConfigEntries:      nil,
+		ReplicationFactor: 0,
+		ReplicaAssignment: nil,
+		ConfigEntries:     nil,
 	}
-	if pipe.Get(replicationFactoryKey) != nil {
-		rf := pipe.String(replicationFactoryKey, "1")
+	if pipe.Get(replicationFactorKey) != nil {
+		rf := pipe.String(replicationFactorKey, "1")
 		rfi, err := strconv.ParseInt(rf, 10, 16)
 		if err != nil {
 			return nil, err
 		}
 
-		conf.CreateTopic.ReplicationFactory = int16(rfi)
+		conf.CreateTopic.ReplicationFactor = int16(rfi)
 	}
 
 	if pipe.Get(replicaAssignmentKey) != nil {
@@ -294,12 +299,15 @@ func parseConfig(conf *config, pipe *pipeline.Pipeline) (*sarama.Config, error) 
 	}
 
 	if pipe.Get(configEntriesKey) != nil {
-		var ce map[string]*string
-		err := json.Unmarshal([]byte(pipe.Get(configEntriesKey).(string)), &ce)
-		if err != nil {
-			return nil, err
+		if cep, ok := pipe.Get(configEntriesKey).(string); ok {
+			var ce map[string]*string
+			err := json.Unmarshal([]byte(cep), &ce)
+			if err != nil {
+				return nil, err
+			}
+
+			conf.CreateTopic.ConfigEntries = ce
 		}
-		conf.CreateTopic.ConfigEntries = ce
 	}
 
 	// consumer ---
@@ -321,17 +329,7 @@ func parseConfig(conf *config, pipe *pipeline.Pipeline) (*sarama.Config, error) 
 		sc.Consumer.Group.Session.Timeout = time.Second * time.Duration(val)
 	}
 
-	/*
-		type ProducerOpts struct {
-			MaxMessageBytes  int              `mapstructure:"max_message_bytes"`
-			RequiredAcks     *int             `mapstructure:"required_acks"`
-			Timeout          int              `mapstructure:"timeout"`
-			CompressionCodec CompressionCodec `mapstructure:"compression_codec"`
-			CompressionLevel *int             `mapstructure:"compression_level"`
-			Idempotent       bool             `mapstructure:"idempotent"`
-		}
-	*/
-
+	// producer options ----------------------
 	if v := pipe.String(maxMessageSizeKey, ""); v != "" {
 		val, err := strconv.Atoi(v)
 		if err != nil {

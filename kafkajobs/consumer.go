@@ -143,7 +143,7 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Co
 	if conf.CreateTopic != nil {
 		// in the FromPipeline method we allocate an conf.CreateTopic, so, to ensure that we don't need to create a topic
 		// we need to check all the values
-		if conf.CreateTopic.ReplicationFactory == 0 &&
+		if conf.CreateTopic.ReplicationFactor == 0 &&
 			conf.CreateTopic.ReplicaAssignment == nil &&
 			conf.CreateTopic.ConfigEntries == nil {
 			return jb, nil
@@ -387,7 +387,7 @@ func createTopic(conf *config, client sarama.Client) error {
 
 	err = admin.CreateTopic(conf.Topic, &sarama.TopicDetail{
 		NumPartitions:     int32(len(conf.PartitionsOffsets)),
-		ReplicationFactor: conf.CreateTopic.ReplicationFactory,
+		ReplicationFactor: conf.CreateTopic.ReplicationFactor,
 		ReplicaAssignment: conf.CreateTopic.ReplicaAssignment,
 		ConfigEntries:     conf.CreateTopic.ConfigEntries,
 	}, false)
