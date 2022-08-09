@@ -83,11 +83,16 @@ func (i *Item) Body() []byte {
 func (i *Item) Context() ([]byte, error) {
 	ctx, err := json.Marshal(
 		struct {
-			ID       string              `json:"id"`
-			Job      string              `json:"job"`
-			Headers  map[string][]string `json:"headers"`
-			Pipeline string              `json:"pipeline"`
-		}{ID: i.Ident, Job: i.Job, Headers: i.Headers, Pipeline: i.Options.Pipeline},
+			ID        string              `json:"id"`
+			Job       string              `json:"job"`
+			Headers   map[string][]string `json:"headers"`
+			Pipeline  string              `json:"pipeline"`
+			Topic     string              `json:"topic"`
+			Partition int32               `json:"partition"`
+			Offset    int64               `json:"offset"`
+		}{ID: i.Ident, Job: i.Job, Headers: i.Headers,
+			Pipeline: i.Options.Pipeline,
+			Topic:    i.Options.topic, Partition: i.Options.partition, Offset: i.Options.offset},
 	)
 
 	if err != nil {

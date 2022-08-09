@@ -25,8 +25,10 @@ const (
 	versionKey           string = "version"
 
 	// consumer opts
-	sessionTimeoutKey    string = "session_timeout"
-	heartbeatIntervalKey string = "heartbeat_interval"
+	sessionTimeoutKey      string = "session_timeout"
+	heartbeatIntervalKey   string = "heartbeat_interval"
+	maxFetchMessageSizeKey string = "max_fetch_message_size"
+	minFetchMessageSizeKey string = "min_fetch_message_size"
 
 	// create topic opts
 	replicationFactorKey string = "replication_factor"
@@ -95,8 +97,10 @@ type ProducerOpts struct {
 }
 
 type ConsumerOpts struct {
-	SessionTimeout    int `mapstructure:"session_timeout"`
-	HeartbeatInterval int `mapstructure:"heartbeat_interval"`
+	MaxFetchMessageSize int32 `mapstructure:"max_fetch_message_size"`
+	MinFetchMessageSize int32 `mapstructure:"min_fetch_message_size"`
+	SessionTimeout      int   `mapstructure:"session_timeout"`
+	HeartbeatInterval   int   `mapstructure:"heartbeat_interval"`
 }
 
 func (c *config) InitDefault() error {
@@ -177,6 +181,13 @@ func (c *config) InitDefault() error {
 
 		if c.ConsumerOpts.SessionTimeout != 0 {
 			c.kafkaConfig.Consumer.Group.Session.Timeout = time.Second * time.Duration(c.ConsumerOpts.SessionTimeout)
+		}
+
+		if c.ConsumerOpts.MaxFetchMessageSize != 0 {
+			c.kafkaConfig.Consumer.Fetch.Default = c.ConsumerOpts.MaxFetchMessageSize
+		}
+		if c.ConsumerOpts.MinFetchMessageSize != 0 {
+			c.kafkaConfig.Consumer.Fetch.Min = c.ConsumerOpts.MinFetchMessageSize
 		}
 	}
 
@@ -327,6 +338,24 @@ func parseConfig(conf *config, pipe *pipeline.Pipeline) (*sarama.Config, error) 
 		}
 
 		sc.Consumer.Group.Session.Timeout = time.Second * time.Duration(val)
+	}
+
+	if v := pipe.String(maxFetchMessageSizeKey, ""); v != "" {
+		val, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+
+		sc.Consumer.Fetch.Default = int32(val)
+	}
+
+	if v := pipe.String(minFetchMessageSizeKey, ""); v != "" {
+		val, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+
+		sc.Consumer.Fetch.Min = int32(val)
 	}
 
 	// producer options ----------------------
