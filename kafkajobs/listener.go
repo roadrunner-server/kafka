@@ -62,9 +62,14 @@ func (c *Consumer) listen(pConsumers []sarama.PartitionConsumer) {
 					continue
 				}
 
-				item := c.fromConsumer(msg)
+				c.log.Debug("message pushed to the priority queue",
+					zap.String("topic", msg.Topic),
+					zap.Int32("partition", msg.Partition),
+					zap.Int64("offset", msg.Offset),
+					zap.Any("headers", msg.Headers),
+				)
 
-				c.pq.Insert(item)
+				c.pq.Insert(fromConsumer(msg, c.kafkaProducer, c.log))
 			case e := <-errorsCh:
 				if e != nil {
 					c.log.Error("consume error", zap.Error(e.Err))
@@ -74,7 +79,7 @@ func (c *Consumer) listen(pConsumers []sarama.PartitionConsumer) {
 	}()
 }
 
-func (c *Consumer) fromConsumer(msg *sarama.ConsumerMessage) *Item {
+func fromConsumer(msg *sarama.ConsumerMessage, kp sarama.AsyncProducer, log *zap.Logger) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
@@ -127,8 +132,8 @@ func (c *Consumer) fromConsumer(msg *sarama.ConsumerMessage) *Item {
 			partition: msg.Partition,
 			topic:     msg.Topic,
 			offset:    msg.Offset,
-			producer:  c.kafkaProducer,
-			log:       c.log,
+			producer:  kp,
+			log:       log,
 		},
 	}
 	return item

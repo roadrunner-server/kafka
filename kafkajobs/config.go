@@ -240,7 +240,7 @@ func parseConfig(conf *config, pipe *pipeline.Pipeline) (*sarama.Config, error) 
 	conf.PartitionsOffsets = make(map[int32]int64)
 	conf.topicPartitions = make(map[string][]int32, len(conf.Topic))
 
-	// config
+	// group id config
 	conf.GroupID = pipe.String(groupIDKey, "")
 
 	if val := pipe.Int(maxOpenRequestsKey, 0); val != 0 {

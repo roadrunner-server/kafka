@@ -28,10 +28,11 @@ type Consumer struct {
 	cfg      *config
 
 	// kafka config
-	kafkaClient        sarama.Client
-	kafkaProducer      sarama.AsyncProducer
-	kafkaConsumer      sarama.Consumer
-	kafkaGroupConsumer sarama.ConsumerGroup //nolint:unused
+	kafkaClient   sarama.Client
+	kafkaProducer sarama.AsyncProducer
+	kafkaConsumer sarama.Consumer
+	kafkaCG       sarama.ConsumerGroup
+	kafkaCGCancel context.CancelFunc
 
 	listeners uint32
 	delayed   *int64
@@ -191,13 +192,29 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	pConsumer, err := c.initConsumer()
-	if err != nil {
-		return errors.E(op, err)
-	}
 
-	// start a listener
-	go c.listen(pConsumer)
+	switch c.cfg.GroupID == "" {
+	// init partition reader
+	case true:
+		pConsumer, err := c.initConsumer()
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		// start a listener
+		go c.listen(pConsumer)
+		// init CG reader
+	case false:
+		err := c.initCG()
+		if err != nil {
+			return err
+		}
+		started := make(chan struct{}, 1)
+		c.listenCG(c.log, c.kafkaProducer, c.pq, "", started)
+		// block until started
+		<-started
+		close(started)
+	}
 
 	atomic.StoreUint32(&c.listeners, 1)
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
@@ -231,7 +248,13 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.kafkaConsumer.Pause(c.cfg.topicPartitions)
+	switch c.cfg.GroupID == "" {
+	// init partition reader
+	case true:
+		c.kafkaConsumer.Pause(c.cfg.topicPartitions)
+	case false:
+		c.kafkaCG.PauseAll()
+	}
 
 	// remove active listener
 	atomic.AddUint32(&c.listeners, ^uint32(0))
@@ -257,19 +280,37 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// user called Resume, pipeline was registered from the PHP code
-	if c.kafkaConsumer == nil {
-		pConsumer, err := c.initConsumer()
-		if err != nil {
-			c.log.Error("unable to init consumer", zap.Error(err))
-			return
-		}
+	switch c.cfg.GroupID == "" {
+	// init partition reader
+	case true:
+		// user called Resume, pipeline was registered from the PHP code
+		if c.kafkaConsumer == nil {
+			pConsumer, err := c.initConsumer()
+			if err != nil {
+				c.log.Error("unable to init consumer", zap.Error(err))
+				return
+			}
 
-		// start a listener
-		go c.listen(pConsumer)
-	} else {
-		// kafka consumer already initialized
-		c.kafkaConsumer.Resume(c.cfg.topicPartitions)
+			// start a listener
+			go c.listen(pConsumer)
+		} else {
+			// kafka consumer already initialized
+			c.kafkaConsumer.Resume(c.cfg.topicPartitions)
+		}
+	case false:
+		if c.kafkaCG == nil {
+			err := c.initCG()
+			if err != nil {
+				c.log.Error("kafka resume", zap.Error(err))
+			}
+			started := make(chan struct{}, 1)
+			c.listenCG(c.log, c.kafkaProducer, c.pq, "", started)
+			// block until started
+			<-started
+			close(started)
+		} else {
+			c.kafkaCG.ResumeAll()
+		}
 	}
 
 	// increase number of listeners
@@ -300,6 +341,14 @@ func (c *Consumer) Stop(context.Context) error {
 		err := c.kafkaProducer.Close()
 		if err != nil {
 			c.log.Error("producer close", zap.Error(err))
+		}
+	}
+
+	if c.kafkaCG != nil {
+		c.kafkaCGCancel()
+		err := c.kafkaCG.Close()
+		if err != nil {
+			c.log.Error("consumer group close", zap.Error(err))
 		}
 	}
 
@@ -372,6 +421,9 @@ func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 	case s := <-c.kafkaProducer.Successes():
 		c.log.Debug("message sent", zap.Int32("partition", s.Partition), zap.Int64("offset", s.Offset))
 	case e := <-c.kafkaProducer.Errors():
+		if e == nil {
+			return nil
+		}
 		c.log.Error("producer error", zap.Any("message", e.Msg), zap.Error(e.Err))
 		return errors.E(op, e.Err)
 	}
