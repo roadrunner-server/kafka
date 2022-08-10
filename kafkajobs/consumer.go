@@ -213,7 +213,6 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 		c.listenCG(c.log, c.kafkaProducer, c.pq, "", started)
 		// block until started
 		<-started
-		close(started)
 	}
 
 	atomic.StoreUint32(&c.listeners, 1)
@@ -307,7 +306,6 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 			c.listenCG(c.log, c.kafkaProducer, c.pq, "", started)
 			// block until started
 			<-started
-			close(started)
 		} else {
 			c.kafkaCG.ResumeAll()
 		}

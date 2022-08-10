@@ -2,6 +2,7 @@ package kafkajobs
 
 import (
 	"context"
+	"time"
 
 	"github.com/Shopify/sarama"
 	priorityqueue "github.com/roadrunner-server/api/v2/pq"
@@ -79,7 +80,9 @@ func (c *Consumer) listenCG(log *zap.Logger, kp sarama.AsyncProducer, pq priorit
 				})
 				if err != nil {
 					c.log.Error("consume group", zap.Error(err))
-					return
+					// super intelligent backoff
+					time.Sleep(time.Second)
+					continue
 				}
 			}
 		}
