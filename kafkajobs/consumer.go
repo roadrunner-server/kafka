@@ -240,7 +240,7 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 	}
 
 	// how is that possible, that listener is registered, but consumer is nil???
-	if c.kafkaConsumer == nil {
+	if c.kafkaConsumer == nil && c.kafkaCG == nil {
 		c.log.Error("consumer is nil, unable to resume")
 		return
 	}
