@@ -5,9 +5,9 @@ go 1.19
 require (
 	github.com/Shopify/sarama v1.36.0
 	github.com/goccy/go-json v0.9.11
-	github.com/roadrunner-server/api/v2 v2.21.0
+	github.com/roadrunner-server/api/v2 v2.21.1
 	github.com/roadrunner-server/errors v1.2.0
-	github.com/roadrunner-server/sdk/v2 v2.18.3
+	github.com/roadrunner-server/sdk/v2 v2.18.4
 	go.uber.org/zap v1.22.0
 )
 
