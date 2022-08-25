@@ -47,6 +47,7 @@ func (gl *groupListener) ConsumeClaim(session sarama.ConsumerGroupSession, claim
 			gl.pq.Insert(fromConsumer(msg, gl.kp, gl.log))
 			session.MarkMessage(msg, gl.metadata)
 		case <-session.Context().Done():
+			gl.log.Debug("session ended", zap.Error(session.Context().Err()))
 			return nil
 		}
 	}
