@@ -5,9 +5,9 @@ go 1.19
 require (
 	github.com/Shopify/sarama v1.36.0
 	github.com/goccy/go-json v0.9.11
-	github.com/roadrunner-server/api/v2 v2.21.2
+	github.com/roadrunner-server/api/v2 v2.22.2-rc.1
 	github.com/roadrunner-server/errors v1.2.0
-	github.com/roadrunner-server/sdk/v2 v2.18.5
+	github.com/roadrunner-server/sdk/v2 v2.19.0-rc.1
 	go.uber.org/zap v1.23.0
 )
 
@@ -32,5 +32,5 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
-	golang.org/x/net v0.0.0-20220906165146-f3363e06e74c // indirect
+	golang.org/x/net v0.0.0-20220907135653-1e95f45603a7 // indirect
 )
