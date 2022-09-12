@@ -202,6 +202,9 @@ func (c *config) InitDefault() error {
 	c.kafkaConfig.Producer.Return.Successes = true
 	c.kafkaConfig.Producer.Return.Errors = true
 	c.kafkaConfig.Version = parseVersion(c.KafkaVersion)
+	// 1 minute in total
+	c.kafkaConfig.Metadata.Retry.Max = 10
+	c.kafkaConfig.Metadata.Retry.Backoff = time.Second * 6
 
 	return c.kafkaConfig.Validate()
 }
@@ -426,6 +429,10 @@ func parseConfig(conf *config, pipe *pipeline.Pipeline) (*sarama.Config, error) 
 
 	sc.Producer.Idempotent = pipe.Bool(idempotentKey, false)
 	sc.ClientID = pipe.String(clientIDKey, "roadrunner")
+
+	// 1 minute in total
+	sc.Metadata.Retry.Max = 10
+	sc.Metadata.Retry.Backoff = time.Second * 6
 
 	err := sc.Validate()
 	if err != nil {
