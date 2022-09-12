@@ -5,9 +5,9 @@ go 1.19
 require (
 	github.com/Shopify/sarama v1.36.0
 	github.com/goccy/go-json v0.9.11
-	github.com/roadrunner-server/api/v2 v2.23.0-rc.2
+	github.com/roadrunner-server/api/v2 v2.23.0
 	github.com/roadrunner-server/errors v1.2.0
-	github.com/roadrunner-server/sdk/v2 v2.19.0-rc.4
+	github.com/roadrunner-server/sdk/v2 v2.19.0
 	go.uber.org/zap v1.23.0
 )
 
@@ -26,11 +26,11 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.3 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
-	github.com/pierrec/lz4/v4 v4.1.15 // indirect
+	github.com/pierrec/lz4/v4 v4.1.16 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/roadrunner-server/tcplisten v1.2.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
-	golang.org/x/net v0.0.0-20220907135653-1e95f45603a7 // indirect
+	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
 )
