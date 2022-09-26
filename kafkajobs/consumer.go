@@ -221,7 +221,15 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 }
 
 func (c *Consumer) State(context.Context) (*jobs.State, error) {
-	return nil, nil
+	pipe := c.pipeline.Load()
+
+	return &jobs.State{
+		Priority: uint64(pipe.Priority()),
+		Pipeline: pipe.Name(),
+		Driver:   pipe.Driver(),
+		Queue:    c.cfg.Topic,
+		Ready:    ready(atomic.LoadUint32(&c.listeners)),
+	}, nil
 }
 
 func (c *Consumer) Pause(_ context.Context, p string) {
@@ -449,4 +457,8 @@ func createTopic(conf *config, client sarama.Client) error {
 	}
 
 	return nil
+}
+
+func ready(r uint32) bool {
+	return r > 0
 }
