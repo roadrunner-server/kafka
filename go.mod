@@ -3,7 +3,7 @@ module github.com/roadrunner-server/kafka/v2
 go 1.19
 
 require (
-	github.com/Shopify/sarama v1.37.0
+	github.com/Shopify/sarama v1.37.2
 	github.com/goccy/go-json v0.9.11
 	github.com/roadrunner-server/api/v2 v2.23.0
 	github.com/roadrunner-server/errors v1.2.0
