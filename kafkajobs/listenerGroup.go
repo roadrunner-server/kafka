@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	priorityqueue "github.com/roadrunner-server/api/v2/pq"
+	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
 	"go.uber.org/zap"
 )
 

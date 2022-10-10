@@ -9,12 +9,11 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
-	"github.com/roadrunner-server/api/v2/plugins/jobs"
-	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
-	priorityqueue "github.com/roadrunner-server/api/v2/pq"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v2/utils"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
+	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
+	"github.com/roadrunner-server/sdk/v3/utils"
 	"go.uber.org/zap"
 )
 
@@ -40,8 +39,16 @@ type Consumer struct {
 	stopped   uint32
 }
 
+type Configurer interface {
+	// UnmarshalKey takes a single key and unmarshal it into a Struct.
+	UnmarshalKey(name string, out any) error
+
+	// Has checks if config section exists.
+	Has(name string) bool
+}
+
 // NewKafkaConsumer initializes kafka pipeline from the configuration
-func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
+func NewKafkaConsumer(configKey string, log *zap.Logger, cfg Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	// no global config
@@ -102,7 +109,7 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg cfgPlugin.Configure
 }
 
 // FromPipeline initializes pipeline on-the-fly
-func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, pq priorityqueue.Queue) (*Consumer, error) {
+func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg Configurer, pq priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	// no global config

@@ -53,6 +53,9 @@ SUPPORTED VERSIONS:
 	V3_0_1_0  = newKafkaVersion(3, 0, 1, 0)
 	V3_1_0_0  = newKafkaVersion(3, 1, 0, 0)
 	V3_2_0_0  = newKafkaVersion(3, 2, 0, 0)
+	V3_2_1_0  = newKafkaVersion(3, 2, 1, 0)
+	V3_2_2_0  = newKafkaVersion(3, 2, 2, 0)
+	V3_2_3_0  = newKafkaVersion(3, 2, 3, 0)
 */
 
 func parseVersion(version string) sarama.KafkaVersion { //nolint:gocyclo
@@ -145,6 +148,12 @@ func parseVersion(version string) sarama.KafkaVersion { //nolint:gocyclo
 		return sarama.V3_1_0_0
 	case "3.2", "3.2.0", "3.2.0.0":
 		return sarama.V3_2_0_0
+	case "3.2.1", "3.2.1.0":
+		return sarama.V3_2_1_0
+	case "3.2.2", "3.2.2.0":
+		return sarama.V3_2_2_0
+	case "3.2.3", "3.2.3.0":
+		return sarama.V3_2_3_0
 	default:
 		return sarama.DefaultVersion
 	}
