@@ -235,7 +235,7 @@ func (c *Consumer) State(context.Context) (*jobs.State, error) {
 		Pipeline: pipe.Name(),
 		Driver:   pipe.Driver(),
 		Queue:    c.cfg.Topic,
-		Ready:    ready(atomic.LoadUint32(&c.listeners)),
+		Ready:    atomic.LoadUint32(&c.listeners) > 0,
 	}, nil
 }
 
@@ -464,8 +464,4 @@ func createTopic(conf *config, client sarama.Client) error {
 	}
 
 	return nil
-}
-
-func ready(r uint32) bool {
-	return r > 0
 }
