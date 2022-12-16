@@ -1,3 +1,5 @@
+//go:build (linux || darwin || freebsd) && amd64 && cgo
+
 package kafka
 
 import (

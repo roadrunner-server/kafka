@@ -4,12 +4,13 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/Shopify/sarama"
 	"github.com/goccy/go-json"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
 	"github.com/roadrunner-server/sdk/v3/utils"
 	"go.uber.org/zap"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 var _ jobs.Acknowledger = (*Item)(nil)
@@ -56,8 +57,9 @@ type Options struct {
 	topic     string
 	metadata  string
 	partition int32
-	offset    int64
-	producer  sarama.AsyncProducer
+	offset    kafka.Offset
+	consumer  *kafka.Consumer
+	producer  *kafka.Producer
 }
 
 // DelayDuration returns delay duration in a form of time.Duration.
@@ -83,16 +85,11 @@ func (i *Item) Body() []byte {
 func (i *Item) Context() ([]byte, error) {
 	ctx, err := json.Marshal(
 		struct {
-			ID        string              `json:"id"`
-			Job       string              `json:"job"`
-			Headers   map[string][]string `json:"headers"`
-			Pipeline  string              `json:"pipeline"`
-			Topic     string              `json:"topic"`
-			Partition int32               `json:"partition"`
-			Offset    int64               `json:"offset"`
-		}{ID: i.Ident, Job: i.Job, Headers: i.Headers,
-			Pipeline: i.Options.Pipeline,
-			Topic:    i.Options.topic, Partition: i.Options.partition, Offset: i.Options.offset},
+			ID       string              `json:"id"`
+			Job      string              `json:"job"`
+			Headers  map[string][]string `json:"headers"`
+			Pipeline string              `json:"pipeline"`
+		}{ID: i.Ident, Job: i.Job, Headers: i.Headers, Pipeline: i.Options.Pipeline},
 	)
 
 	if err != nil {
@@ -103,6 +100,20 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) Ack() error {
+	tp := make(kafka.TopicPartitions, 0, 1)
+	tp = append(tp, kafka.TopicPartition{
+		Error:     nil,
+		Metadata:  ptrTo(i.Options.metadata),
+		Offset:    i.Options.offset,
+		Partition: i.Options.partition,
+		Topic:     ptrTo(i.Options.topic),
+	})
+
+	_, err := i.Options.consumer.CommitOffsets(tp)
+	if err != nil {
+		return errors.E(errors.Str("commit failed"), err)
+	}
+
 	return nil
 }
 
@@ -134,19 +145,20 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 
 	msg := i.Copy()
 	msg.Headers = headers
+	msg.Options.producer = nil
+	msg.Options.consumer = nil
 
-	defer func() {
-		msg.Options.producer = nil
-	}()
+	// confirm channel
+	eventCh := make(chan kafka.Event, 1)
 
-	kh := make([]sarama.RecordHeader, 0, len(msg.Headers))
+	kh := make([]kafka.Header, 0, len(msg.Headers))
 
 	// only 1 header per key is supported
 	// RR_HEADERS
 	for k, v := range msg.Headers {
 		if len(v) > 0 {
-			kh = append(kh, sarama.RecordHeader{
-				Key:   utils.AsBytes(k),
+			kh = append(kh, kafka.Header{
+				Key:   k,
 				Value: utils.AsBytes(v[0]),
 			})
 		}
@@ -159,47 +171,87 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 		RRPipeline string = "rr_pipeline"
 		RRDelay    string = "rr_delay"
 		RRPriority string = "rr_priority"
+		RRAutoAck  string = "rr_auto_ack"
 	*/
 
 	// RRJob
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRJob),
-		Value: utils.AsBytes(msg.Job),
+	kh = append(kh, kafka.Header{
+		Key:   jobs.RRJob,
+		Value: []byte(msg.Job),
 	})
 	// RRPipeline
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRPipeline),
-		Value: utils.AsBytes(msg.Options.Pipeline),
+	kh = append(kh, kafka.Header{
+		Key:   jobs.RRPipeline,
+		Value: []byte(msg.Options.Pipeline),
 	})
 	// RRPriority
 	pri := make([]byte, 8)
 	binary.LittleEndian.PutUint64(pri, uint64(msg.Priority()))
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRPriority),
+	kh = append(kh, kafka.Header{
+		Key:   jobs.RRPriority,
 		Value: pri,
 	})
+
+	// put auto_ack only if exists
+	if msg.Options.AutoAck {
+		ack := make([]byte, 1)
+		ack[0] = 1
+		kh = append(kh, kafka.Header{
+			Key:   jobs.RRAutoAck,
+			Value: ack,
+		})
+	}
 
 	if i.Options.producer == nil {
 		return errors.E(op, errors.Str("can't requeue the message, producer is not active"))
 	}
-
-	id := []byte(msg.ID())
-	i.Options.producer.Input() <- &sarama.ProducerMessage{
-		Topic:     msg.Options.topic,
-		Key:       JobKVEncoder{value: id},
-		Value:     JobKVEncoder{value: msg.Body()},
-		Headers:   kh,
-		Metadata:  msg.Options.metadata,
-		Offset:    msg.Options.offset,
-		Partition: msg.Options.partition,
-		Timestamp: time.Time{},
+	err := i.Options.producer.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{
+			Topic:     ptrTo(msg.Options.topic),
+			Partition: msg.Options.partition,
+			Metadata:  ptrTo(msg.Options.metadata),
+		},
+		Value: msg.Body(),
+		// RR_ID
+		Key:           utils.AsBytes(msg.ID()),
+		Timestamp:     time.Now(),
+		TimestampType: kafka.TimestampCreateTime,
+		Headers:       kh,
+	}, eventCh)
+	if err != nil {
+		return errors.E(op, err)
 	}
 
+	timeout := time.NewTimer(time.Second * 30)
+
 	select {
-	case s := <-i.Options.producer.Successes():
-		i.Options.log.Debug("message requeue", zap.Int32("partition", s.Partition), zap.Int64("offset", s.Offset))
-	case e := <-i.Options.producer.Errors():
-		return errors.E(op, e.Err)
+	case e := <-eventCh:
+		switch ev := e.(type) { //nolint:gocritic
+		case *kafka.Message:
+			if ev.TopicPartition.Error != nil {
+				return errors.Errorf("delivery failed: %v", ev.TopicPartition)
+			}
+
+			i.Options.log.Debug("message delivered", zap.String("topic", *ev.TopicPartition.Topic))
+		}
+	case <-timeout.C:
+		timeout.Stop()
+		return errors.E(errors.TimeOut)
+	}
+
+	// remove current message
+	tp := make(kafka.TopicPartitions, 0, 1)
+	tp = append(tp, kafka.TopicPartition{
+		Error:     nil,
+		Metadata:  ptrTo(i.Options.metadata),
+		Offset:    i.Options.offset,
+		Partition: i.Options.partition,
+		Topic:     ptrTo(i.Options.topic),
+	})
+
+	_, err = i.Options.consumer.CommitOffsets(tp)
+	if err != nil {
+		return errors.E(errors.Str("commit failed"), err)
 	}
 
 	return nil
@@ -224,7 +276,7 @@ func fromJob(job *jobs.Job) *Item {
 			topic:     job.Options.Topic,
 			metadata:  job.Options.Metadata,
 			partition: job.Options.Partition,
-			offset:    job.Options.Offset,
+			offset:    kafka.Offset(job.Options.Offset),
 		},
 	}
 }

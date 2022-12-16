@@ -2,84 +2,75 @@ package kafkajobs
 
 import (
 	"encoding/binary"
-	"sync"
+	"sync/atomic"
 
-	"github.com/Shopify/sarama"
-	"github.com/roadrunner-server/errors"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
-	"github.com/roadrunner-server/sdk/v3/utils"
 	"go.uber.org/zap"
 )
 
 // blocking function
-func (c *Consumer) initConsumer() ([]sarama.PartitionConsumer, error) {
+func (c *Consumer) initConsumer(topics []string) error {
 	var err error
-	c.kafkaConsumer, err = sarama.NewConsumerFromClient(c.kafkaClient)
+	c.kafkaConsumer, err = kafka.NewConsumer(c.cfg.KafkaConsumerConfigMap)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	pConsumers := make([]sarama.PartitionConsumer, 0, 1)
-
-	// we have only 1 topic (rustatian)
-	for k, v := range c.cfg.topicPartitions {
-		for i := 0; i < len(v); i++ {
-			pc, errK := c.kafkaConsumer.ConsumePartition(k, v[i], c.cfg.PartitionsOffsets[v[i]])
-			if errK != nil {
-				return nil, errK
-			}
-
-			pConsumers = append(pConsumers, pc)
-		}
+	err = c.kafkaConsumer.SubscribeTopics(topics, nil)
+	if err != nil {
+		return err
 	}
 
-	if len(pConsumers) == 0 {
-		/*
-			%v	the value in a default format
-				when printing structs, the plus flag (%+v) adds field names
-		*/
-		return nil, errors.Errorf("no consume configuration provided, please, check the `partitions_offsets` key: %+v", c.cfg.PartitionsOffsets)
-	}
-
-	return pConsumers, nil
+	return nil
 }
 
-func (c *Consumer) listen(pConsumers []sarama.PartitionConsumer) {
-	messagesCh := fanInConsumers(pConsumers)
-	errorsCh := fanInConsumersErrors(pConsumers)
-
+func (c *Consumer) listen() {
 	go func() {
 		for {
 			select {
 			case <-c.stopCh:
-				for i := 0; i < len(pConsumers); i++ {
-					pConsumers[i].AsyncClose()
-				}
 				return
-			case msg := <-messagesCh:
-				if msg == nil {
-					c.log.Debug("nil message")
-					continue
+			default:
+				// pipeline was stopped
+				if atomic.LoadUint32(&c.stopped) == 1 {
+					return
 				}
 
-				c.log.Debug("message pushed to the priority queue",
-					zap.String("topic", msg.Topic),
-					zap.Int32("partition", msg.Partition),
-					zap.Int64("offset", msg.Offset),
-					zap.Any("headers", msg.Headers),
-				)
+				ev := c.kafkaConsumer.Poll(-1)
+				switch e := ev.(type) {
+				case kafka.AssignedPartitions:
+					c.log.Info("partition assigned", zap.String("partitions", e.String()))
+					continue
+				case kafka.RevokedPartitions:
+					c.log.Info("partition revoked", zap.String("partitions", e.String()))
+					continue
+				case *kafka.Message:
+					item := c.fromConsumer(e)
 
-				c.pq.Insert(fromConsumer(msg, c.kafkaProducer, c.log))
-			case e := <-errorsCh:
-				if e != nil {
-					c.log.Error("consume error", zap.Error(e.Err))
+					if item.Options.AutoAck {
+						_, err := c.kafkaConsumer.CommitMessage(e)
+						if err != nil {
+							c.log.Error("failed to commit message", zap.Error(err))
+							continue
+						}
+					}
+
+					c.pq.Insert(item)
+				case kafka.PartitionEOF:
+					c.log.Info("partition EOF", zap.String("topic", *e.Topic), zap.Int32("partition", e.Partition), zap.Error(e.Error))
+					continue
+					// redial or other type of error. We can continue our for loop
+				case kafka.Error:
+					c.log.Error("kafka consumer", zap.Error(e))
+					continue
 				}
 			}
 		}
 	}()
 }
 
-func fromConsumer(msg *sarama.ConsumerMessage, kp sarama.AsyncProducer, log *zap.Logger) *Item {
+func (c *Consumer) fromConsumer(msg *kafka.Message) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
@@ -92,18 +83,21 @@ func fromConsumer(msg *sarama.ConsumerMessage, kp sarama.AsyncProducer, log *zap
 	var rrjob string
 	var rrpipeline string
 	var rrpriority int64
+	var rrautoack bool
 	headers := make(map[string][]string)
 
 	for i := 0; i < len(msg.Headers); i++ {
-		switch utils.AsString(msg.Headers[i].Key) {
+		switch msg.Headers[i].Key {
 		case jobs.RRJob:
 			rrjob = string(msg.Headers[i].Value)
 		case jobs.RRPipeline:
 			rrpipeline = string(msg.Headers[i].Value)
 		case jobs.RRPriority:
 			rrpriority = int64(binary.LittleEndian.Uint64(msg.Headers[i].Value))
+		case jobs.RRAutoAck:
+			rrautoack = true
 		default:
-			headers[string(msg.Headers[i].Key)] = []string{string(msg.Headers[i].Value)}
+			headers[msg.Headers[i].Key] = []string{string(msg.Headers[i].Value)}
 		}
 	}
 
@@ -127,64 +121,16 @@ func fromConsumer(msg *sarama.ConsumerMessage, kp sarama.AsyncProducer, log *zap
 		Options: &Options{
 			Priority: rrpriority,
 			Pipeline: rrpipeline,
+			AutoAck:  rrautoack,
 
 			// private
-			partition: msg.Partition,
-			topic:     msg.Topic,
-			offset:    msg.Offset,
-			producer:  kp,
-			log:       log,
+			partition: msg.TopicPartition.Partition,
+			topic:     *msg.TopicPartition.Topic,
+			offset:    msg.TopicPartition.Offset,
+			consumer:  c.kafkaConsumer,
+			producer:  c.kafkaProducer,
+			log:       c.log,
 		},
 	}
 	return item
-}
-
-func fanInConsumers(cons []sarama.PartitionConsumer) chan *sarama.ConsumerMessage { //nolint:dupl
-	out := make(chan *sarama.ConsumerMessage)
-	wg := sync.WaitGroup{}
-
-	output := func(c <-chan *sarama.ConsumerMessage) {
-		for msg := range c {
-			out <- msg
-		}
-		wg.Done()
-	}
-
-	wg.Add(len(cons))
-	for i := 0; i < len(cons); i++ {
-		ii := i
-		go output(cons[ii].Messages())
-	}
-
-	go func() {
-		wg.Wait()
-		close(out)
-	}()
-
-	return out
-}
-
-func fanInConsumersErrors(cons []sarama.PartitionConsumer) chan *sarama.ConsumerError { //nolint:dupl
-	out := make(chan *sarama.ConsumerError)
-	wg := sync.WaitGroup{}
-
-	output := func(c <-chan *sarama.ConsumerError) {
-		for msg := range c {
-			out <- msg
-		}
-		wg.Done()
-	}
-
-	wg.Add(len(cons))
-	for i := 0; i < len(cons); i++ {
-		ii := i
-		go output(cons[ii].Errors())
-	}
-
-	go func() {
-		wg.Wait()
-		close(out)
-	}()
-
-	return out
 }
