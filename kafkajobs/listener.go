@@ -62,8 +62,19 @@ func (c *Consumer) listen() {
 					continue
 					// redial or other type of error. We can continue our for loop
 				case kafka.Error:
-					c.log.Error("kafka consumer", zap.Error(e))
+					c.log.Error("kafka consumer", zap.String("error", e.String()), zap.Bool("fatal", e.IsFatal()), zap.String("code", e.Code().String()), zap.Bool("retriable", e.IsRetriable()))
+					if e.IsFatal() {
+						err := c.initConsumer(c.cfg.Topics)
+						if err != nil {
+							panic(err)
+						}
+						return
+					}
 					continue
+				default:
+					if e != nil {
+						c.log.Error("unrecognized", zap.String("error", e.String()))
+					}
 				}
 			}
 		}

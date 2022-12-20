@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -90,12 +89,6 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg Configurer, pq prio
 	if err != nil {
 		return nil, err
 	}
-	if conf.CreateTopicsOnStart {
-		err = jb.createTopics(&conf, jb.kafkaProducer)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	return jb, nil
 }
@@ -108,25 +101,14 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, _ Configurer, pq
 	tp = strings.ReplaceAll(tp, " ", "")
 	tps := strings.Split(tp, ",")
 
-	var numOfPart int
-	var err error
-	nop := pipeline.String(numOfPartitions, "1")
-	numOfPart, err = strconv.Atoi(nop)
-	if err != nil {
-		// just use default value
-		numOfPart = 1
-	}
-
 	conf := &config{
-		Priority:            pipeline.Int(pri, 10),
-		Topics:              tps,
-		CreateTopicsOnStart: pipeline.Bool(createTopicsOnStart, false),
-		NumberOfPartitions:  numOfPart,
+		Priority: pipeline.Int(pri, 10),
+		Topics:   tps,
 	}
 
 	// PARSE CONFIGURATION START -------
 	topicsConf := pipeline.String(topicsConfig, "")
-	err = json.Unmarshal([]byte(topicsConf), &conf.TopicsConfig)
+	err := json.Unmarshal([]byte(topicsConf), &conf.TopicsConfig)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -157,12 +139,6 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, _ Configurer, pq
 	jb.kafkaProducer, err = kafka.NewProducer(conf.KafkaProducerConfigMap)
 	if err != nil {
 		return nil, err
-	}
-	if conf.CreateTopicsOnStart {
-		err = jb.createTopics(conf, jb.kafkaProducer)
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
 	}
 
 	return jb, nil
@@ -279,7 +255,7 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 	l := atomic.LoadUint32(&c.listeners)
 	// no active listeners
 	if l == 1 {
-		c.log.Warn("amqp listener is already in the active state")
+		c.log.Warn("kafka listener is already in the active state")
 		return
 	}
 
@@ -343,7 +319,7 @@ func (c *Consumer) Stop(context.Context) error {
 	}
 
 	if c.kafkaProducer != nil {
-		_ = c.kafkaProducer.Flush(1 * 1000)
+		c.log.Debug("un-flushed", zap.Int("number", c.kafkaProducer.Flush(1*1000)))
 		c.kafkaProducer.Close()
 	}
 
@@ -446,39 +422,4 @@ func (c *Consumer) handleItem(ctx context.Context, msg *Item) error {
 
 func ptrTo[T any](val T) *T {
 	return &val
-}
-
-func (c *Consumer) createTopics(conf *config, kp *kafka.Producer) error {
-	ac, err := kafka.NewAdminClientFromProducer(kp)
-	if err != nil {
-		return err
-	}
-
-	tspec := make([]kafka.TopicSpecification, 0, len(conf.Topics))
-
-	for i := 0; i < len(conf.Topics); i++ {
-		tspec = append(tspec, kafka.TopicSpecification{
-			Topic:             conf.Topics[i],
-			NumPartitions:     conf.NumberOfPartitions,
-			ReplicationFactor: 1,
-			Config:            conf.TopicsConfig,
-		})
-	}
-
-	ktopres, err := ac.CreateTopics(context.Background(), tspec)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < len(ktopres); i++ {
-		if ktopres[i].Error.Code() != kafka.ErrNoError {
-			if ktopres[i].Error.Code() == kafka.ErrTopicAlreadyExists {
-				// don't fail if the topic exists
-				continue
-			}
-			return ktopres[i].Error
-		}
-	}
-
-	return nil
 }
