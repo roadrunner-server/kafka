@@ -1,14 +1,15 @@
 package kafkajobs
 
 import (
+	"context"
 	"encoding/binary"
 	"time"
 
-	"github.com/Shopify/sarama"
 	"github.com/goccy/go-json"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
 	"github.com/roadrunner-server/sdk/v3/utils"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
 )
 
@@ -57,7 +58,7 @@ type Options struct {
 	metadata  string
 	partition int32
 	offset    int64
-	producer  sarama.AsyncProducer
+	cl        *kgo.Client
 }
 
 // DelayDuration returns delay duration in a form of time.Duration.
@@ -103,6 +104,7 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) Ack() error {
+	i.Options.cl.
 	return nil
 }
 
@@ -135,18 +137,14 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	msg := i.Copy()
 	msg.Headers = headers
 
-	defer func() {
-		msg.Options.producer = nil
-	}()
-
-	kh := make([]sarama.RecordHeader, 0, len(msg.Headers))
+	kh := make([]kgo.RecordHeader, 0, len(msg.Headers))
 
 	// only 1 header per key is supported
 	// RR_HEADERS
 	for k, v := range msg.Headers {
 		if len(v) > 0 {
-			kh = append(kh, sarama.RecordHeader{
-				Key:   utils.AsBytes(k),
+			kh = append(kh, kgo.RecordHeader{
+				Key:   k,
 				Value: utils.AsBytes(v[0]),
 			})
 		}
@@ -162,46 +160,44 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	*/
 
 	// RRJob
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRJob),
+	kh = append(kh, kgo.RecordHeader{
+		Key:   jobs.RRJob,
 		Value: utils.AsBytes(msg.Job),
 	})
 	// RRPipeline
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRPipeline),
+	kh = append(kh, kgo.RecordHeader{
+		Key:   jobs.RRPipeline,
 		Value: utils.AsBytes(msg.Options.Pipeline),
 	})
 	// RRPriority
 	pri := make([]byte, 8)
 	binary.LittleEndian.PutUint64(pri, uint64(msg.Priority()))
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRPriority),
+	kh = append(kh, kgo.RecordHeader{
+		Key:   jobs.RRPriority,
 		Value: pri,
 	})
 
-	if i.Options.producer == nil {
-		return errors.E(op, errors.Str("can't requeue the message, producer is not active"))
+	if i.Options.cl == nil {
+		return errors.E(op, errors.Str("can't requeue the message, client is not active"))
 	}
 
 	id := []byte(msg.ID())
-	i.Options.producer.Input() <- &sarama.ProducerMessage{
-		Topic:     msg.Options.topic,
-		Key:       JobKVEncoder{value: id},
-		Value:     JobKVEncoder{value: msg.Body()},
+
+	pr := i.Options.cl.ProduceSync(context.Background(), &kgo.Record{
+		Key:       id,
+		Value:     msg.Body(),
 		Headers:   kh,
-		Metadata:  msg.Options.metadata,
-		Offset:    msg.Options.offset,
-		Partition: msg.Options.partition,
 		Timestamp: time.Time{},
-	}
+		Topic:     msg.Options.topic,
+		Partition: msg.Options.partition,
+		Attrs:     kgo.RecordAttrs{},
+		Offset:    msg.Options.offset,
+	})
 
-	select {
-	case s := <-i.Options.producer.Successes():
-		i.Options.log.Debug("message requeue", zap.Int32("partition", s.Partition), zap.Int64("offset", s.Offset))
-	case e := <-i.Options.producer.Errors():
-		return errors.E(op, e.Err)
+	err := pr.FirstErr()
+	if err != nil {
+		return err
 	}
-
 	return nil
 }
 

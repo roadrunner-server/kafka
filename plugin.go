@@ -41,10 +41,12 @@ func (p *Plugin) Name() string {
 
 // ConsumerFromConfig constructs kafka driver from the .rr.yaml configuration
 func (p *Plugin) ConsumerFromConfig(configKey string, pq priorityqueue.Queue) (jobs.Consumer, error) {
+	p.log.Warn("KAFKA DRIVER IS CURRENTLY IN BETA")
 	return kafkajobs.NewKafkaConsumer(configKey, p.log, p.cfg, pq)
 }
 
 // ConsumerFromPipeline constructs kafka driver from pipeline
 func (p *Plugin) ConsumerFromPipeline(pipe *pipeline.Pipeline, pq priorityqueue.Queue) (jobs.Consumer, error) {
+	p.log.Warn("KAFKA DRIVER IS CURRENTLY IN BETA")
 	return kafkajobs.FromPipeline(pipe, p.log, p.cfg, pq)
 }

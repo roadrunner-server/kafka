@@ -14,6 +14,7 @@ import (
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
 	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
 	"github.com/roadrunner-server/sdk/v3/utils"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
 )
 
@@ -27,10 +28,7 @@ type Consumer struct {
 	cfg      *config
 
 	// kafka config
-	kafkaClient   sarama.Client
-	kafkaProducer sarama.AsyncProducer
-	kafkaConsumer sarama.Consumer
-	kafkaCG       sarama.ConsumerGroup
+	kafkaClient   *kgo.Client
 	kafkaCGCancel context.CancelFunc
 
 	listeners uint32
@@ -73,7 +71,7 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg Configurer, pq prio
 		return nil, errors.E(op, err)
 	}
 
-	err = conf.InitDefault()
+	opts, err := conf.InitDefault()
 	if err != nil {
 		return nil, err
 	}
@@ -87,17 +85,16 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg Configurer, pq prio
 		cfg:     &conf,
 	}
 
+	// One client can both produce and consume!
+	// Consuming can either be direct (no consumer group), or through a group. Below, we use a group.
+	jb.kafkaClient, err = kgo.NewClient(
+		opts...,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	// start producer to push the jobs
-	jb.kafkaClient, err = sarama.NewClient(conf.Addresses, conf.kafkaConfig)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	jb.kafkaProducer, err = sarama.NewAsyncProducerFromClient(jb.kafkaClient)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
 	if conf.CreateTopic != nil {
 		err = createTopic(&conf, jb.kafkaClient)
 		if err != nil {
@@ -378,14 +375,14 @@ func (c *Consumer) Stop(context.Context) error {
 func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
 
-	kh := make([]sarama.RecordHeader, 0, len(msg.Headers))
+	kh := make([]kgo.RecordHeader, 0, len(msg.Headers))
 
 	// only 1 header per key is supported
 	// RR_HEADERS
 	for k, v := range msg.Headers {
 		if len(v) > 0 {
-			kh = append(kh, sarama.RecordHeader{
-				Key:   utils.AsBytes(k),
+			kh = append(kh, kgo.RecordHeader{
+				Key:   k,
 				Value: utils.AsBytes(v[0]),
 			})
 		}
@@ -401,45 +398,62 @@ func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 	*/
 
 	// RRJob
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRJob),
+	kh = append(kh, kgo.RecordHeader{
+		Key:   jobs.RRJob,
 		Value: utils.AsBytes(msg.Job),
 	})
 	// RRPipeline
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRPipeline),
+	kh = append(kh, kgo.RecordHeader{
+		Key:   jobs.RRPipeline,
 		Value: utils.AsBytes(msg.Options.Pipeline),
 	})
 	// RRPriority
 	rrpri := make([]byte, 8)
 	binary.LittleEndian.PutUint64(rrpri, uint64(msg.Priority()))
-	kh = append(kh, sarama.RecordHeader{
-		Key:   utils.AsBytes(jobs.RRPriority),
+	kh = append(kh, kgo.RecordHeader{
+		Key:   jobs.RRPriority,
 		Value: rrpri,
 	})
 
 	id := []byte(msg.ID())
-	c.kafkaProducer.Input() <- &sarama.ProducerMessage{
-		Topic:     msg.Options.topic,
-		Key:       JobKVEncoder{value: id},
-		Value:     JobKVEncoder{value: msg.Body()},
+
+	pr := c.kafkaClient.ProduceSync(context.Background(), &kgo.Record{
+		Key:       id,
+		Value:     msg.Body(),
 		Headers:   kh,
-		Metadata:  msg.Options.metadata,
-		Offset:    msg.Options.offset,
+		Timestamp: time.Time{},
+		Topic:     msg.Options.topic,
 		Partition: msg.Options.partition,
-		Timestamp: time.Now(),
+		Attrs:     kgo.RecordAttrs{},
+		Offset:    msg.Options.offset,
+	})
+
+	err := pr.FirstErr()
+	if err != nil {
+		return err
 	}
 
-	select {
-	case s := <-c.kafkaProducer.Successes():
-		c.log.Debug("message sent", zap.Int32("partition", s.Partition), zap.Int64("offset", s.Offset))
-	case e := <-c.kafkaProducer.Errors():
-		if e == nil {
-			return nil
-		}
-		c.log.Error("producer error", zap.Any("message", e.Msg), zap.Error(e.Err))
-		return errors.E(op, e.Err)
-	}
+	//.Input() <- &sarama.ProducerMessage{
+	//	Topic:     msg.Options.topic,
+	//	Key:       JobKVEncoder{value: id},
+	//	Value:     JobKVEncoder{value: msg.Body()},
+	//	Headers:   kh,
+	//	Metadata:  msg.Options.metadata,
+	//	Offset:    msg.Options.offset,
+	//	Partition: msg.Options.partition,
+	//	Timestamp: time.Now(),
+	//}
+
+	//select {
+	//case s := <-c.kafkaProducer.Successes():
+	//	c.log.Debug("message sent", zap.Int32("partition", s.Partition), zap.Int64("offset", s.Offset))
+	//case e := <-c.kafkaProducer.Errors():
+	//	if e == nil {
+	//		return nil
+	//	}
+	//	c.log.Error("producer error", zap.Any("message", e.Msg), zap.Error(e.Err))
+	//	return errors.E(op, e.Err)
+	//}
 
 	return nil
 }
