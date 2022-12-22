@@ -170,63 +170,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 			opts = append(opts, kgo.ConsumeRegex())
 		}
 
-		// default - 0, OffsetNewest
-		//if len(c.ConsumeOffset) != 0 {
-		//	opts = append(opts, kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()))
-		//}
-		//
-		//if c.ConsumerOpts.HeartbeatInterval != 0 {
-		//	c.kafkaConfig.Consumer.Group.Heartbeat.Interval = time.Second * time.Duration(c.ConsumerOpts.HeartbeatInterval)
-		//}
-		//
-		//if c.ConsumerOpts.SessionTimeout != 0 {
-		//	c.kafkaConfig.Consumer.Group.Session.Timeout = time.Second * time.Duration(c.ConsumerOpts.SessionTimeout)
-		//}
-		//
-		//if c.ConsumerOpts.MaxFetchMessageSize != 0 {
-		//	c.kafkaConfig.Consumer.Fetch.Default = c.ConsumerOpts.MaxFetchMessageSize
-		//}
-		//if c.ConsumerOpts.MinFetchMessageSize != 0 {
-		//	c.kafkaConfig.Consumer.Fetch.Min = c.ConsumerOpts.MinFetchMessageSize
-		//}
 	}
-
-	//if c.MaxOpenRequests != 0 {
-	//	c.kafkaConfig.Net.MaxOpenRequests = c.MaxOpenRequests
-	//}
-	//
-	//if c.ClientID == "" {
-	//	c.kafkaConfig.ClientID = "roadrunner"
-	//}
-	//
-	//c.kafkaConfig.Producer.Return.Successes = true
-	//c.kafkaConfig.Producer.Return.Errors = true
-	//c.kafkaConfig.Version = parseVersion(c.KafkaVersion)
-	//// 1 minute in total
-	//c.kafkaConfig.Metadata.Retry.Max = 10
-	//c.kafkaConfig.Metadata.Retry.Backoff = time.Second * 6
-	//
-	//
 
 	return opts, nil
 }
-
-/*
-	groupIDKey           string = "group_id"
-	partitionsOffsetsKey string = "partitions_offsets"
-	maxOpenRequestsKey   string = "max_open_requests"
-
-	// create topic opts
-	replicationFactoryKey string = "replication_factory"
-	replicaAssignmentKey  string = "replica_assignment"
-	configEntriesKey      string = "config_entries"
-
-	// producer opts
-	maxMessageSizeKey   string = "max_message_bytes"
-	requiredAcksKey     string = "required_acks"
-	timeoutKey          string = "timeout"
-	compressionCodecKey string = "compression_codec"
-	compressionLevelKey string = "compression_level"
-	idempotentKey       string = "idempotent"
-*/
-

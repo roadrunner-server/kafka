@@ -3,12 +3,10 @@ package kafkajobs
 import (
 	"context"
 	"encoding/binary"
-	stderr "errors"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/Shopify/sarama"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
@@ -94,14 +92,6 @@ func NewKafkaConsumer(configKey string, log *zap.Logger, cfg Configurer, pq prio
 		return nil, err
 	}
 
-	// start producer to push the jobs
-	if conf.CreateTopic != nil {
-		err = createTopic(&conf, jb.kafkaClient)
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-	}
-
 	return jb, nil
 }
 
@@ -121,10 +111,10 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg Configurer, 
 		return nil, errors.E(op, err)
 	}
 
-	sc, err := parseConfig(conf, pipeline)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
+	//sc, err := parseConfig(conf, pipeline)
+	//if err != nil {
+	//	return nil, errors.E(op, err)
+	//}
 
 	jb := &Consumer{
 		log:     log,
@@ -134,29 +124,11 @@ func FromPipeline(pipeline *pipeline.Pipeline, log *zap.Logger, cfg Configurer, 
 		cfg:     conf,
 	}
 
-	jb.kafkaClient, err = sarama.NewClient(conf.Addresses, sc)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	// start producer to push the jobs
-	jb.kafkaProducer, err = sarama.NewAsyncProducerFromClient(jb.kafkaClient)
+	jb.kafkaClient, err = kgo.NewClient(
+		//opts...,
+	)
 	if err != nil {
 		return nil, err
-	}
-
-	if conf.CreateTopic != nil {
-		// in the FromPipeline method we allocate an conf.CreateTopic, so, to ensure that we don't need to create a topic
-		// we need to check all the values
-		if conf.CreateTopic.ReplicationFactor == 0 &&
-			conf.CreateTopic.ReplicaAssignment == nil &&
-			conf.CreateTopic.ConfigEntries == nil {
-			return jb, nil
-		}
-		err = createTopic(conf, jb.kafkaClient)
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
 	}
 
 	return jb, nil
@@ -197,27 +169,29 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	switch c.cfg.GroupID == "" {
-	// init partition reader
-	case true:
-		pConsumer, err := c.initConsumer()
-		if err != nil {
-			return errors.E(op, err)
-		}
+	c.listen()
 
-		// start a listener
-		go c.listen(pConsumer)
-		// init CG reader
-	case false:
-		err := c.initCG()
-		if err != nil {
-			return err
-		}
-		started := make(chan struct{}, 1)
-		c.listenCG(c.log, c.kafkaProducer, c.pq, "", started)
-		// block until started
-		<-started
-	}
+	//switch c.cfg.GroupID == "" {
+	//// init partition reader
+	//case true:
+	//	pConsumer, err := c.initConsumer()
+	//	if err != nil {
+	//		return errors.E(op, err)
+	//	}
+	//
+	//	// start a listener
+	//	go c.listen(pConsumer)
+	//	// init CG reader
+	//case false:
+	//	err := c.initCG()
+	//	if err != nil {
+	//		return err
+	//	}
+	//	started := make(chan struct{}, 1)
+	//	c.listenCG(c.log, c.kafkaProducer, c.pq, "", started)
+	//	// block until started
+	//	<-started
+	//}
 
 	atomic.StoreUint32(&c.listeners, 1)
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
@@ -454,28 +428,6 @@ func (c *Consumer) handleItem(_ context.Context, msg *Item) error {
 	//	c.log.Error("producer error", zap.Any("message", e.Msg), zap.Error(e.Err))
 	//	return errors.E(op, e.Err)
 	//}
-
-	return nil
-}
-
-func createTopic(conf *config, client sarama.Client) error {
-	admin, err := sarama.NewClusterAdminFromClient(client)
-	if err != nil {
-		return err
-	}
-
-	err = admin.CreateTopic(conf.Topic, &sarama.TopicDetail{
-		NumPartitions:     int32(len(conf.PartitionsOffsets)),
-		ReplicationFactor: conf.CreateTopic.ReplicationFactor,
-		ReplicaAssignment: conf.CreateTopic.ReplicaAssignment,
-		ConfigEntries:     conf.CreateTopic.ConfigEntries,
-	}, false)
-	if err != nil {
-		if stderr.Is(err, sarama.ErrTopicAlreadyExists) {
-			return nil
-		}
-		return err
-	}
 
 	return nil
 }

@@ -4,20 +4,17 @@ import (
 	"context"
 	"encoding/binary"
 
-	"github.com/Shopify/sarama"
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
 )
 
-func (c *Consumer) listen(pConsumers []sarama.PartitionConsumer) {
+func (c *Consumer) listen() {
 	go func() {
 		for {
 			select {
 			case <-c.stopCh:
-				for i := 0; i < len(pConsumers); i++ {
-					pConsumers[i].AsyncClose()
-				}
+				c.kafkaClient.Close()
 				return
 			default:
 				iter := c.kafkaClient.PollFetches(context.Background()).RecordIter()
@@ -54,7 +51,7 @@ func fromConsumer(msg *kgo.Record, log *zap.Logger) *Item {
 		case jobs.RRPriority:
 			rrpriority = int64(binary.LittleEndian.Uint64(msg.Headers[i].Value))
 		default:
-			headers[string(msg.Headers[i].Key)] = []string{string(msg.Headers[i].Value)}
+			headers[msg.Headers[i].Key] = []string{string(msg.Headers[i].Value)}
 		}
 	}
 

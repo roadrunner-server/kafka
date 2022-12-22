@@ -10,7 +10,6 @@ import (
 	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
 	"github.com/roadrunner-server/sdk/v3/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
-	"go.uber.org/zap"
 )
 
 var _ jobs.Acknowledger = (*Item)(nil)
@@ -53,12 +52,12 @@ type Options struct {
 
 	// kafka related fields
 	// private (used to commit messages)
-	log       *zap.Logger
+	cl        *kgo.Client
+	record    *kgo.Record
 	topic     string
 	metadata  string
 	partition int32
 	offset    int64
-	cl        *kgo.Client
 }
 
 // DelayDuration returns delay duration in a form of time.Duration.
@@ -104,7 +103,6 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) Ack() error {
-	i.Options.cl.
 	return nil
 }
 
