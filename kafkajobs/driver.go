@@ -34,9 +34,10 @@ type Driver struct {
 
 	listeners  uint32
 	delayed    *int64
-	stopCh     chan struct{}
 	commandsCh chan<- jobs.Commander
 	stopped    uint32
+
+	once sync.Once
 }
 
 type Configurer interface {
@@ -81,7 +82,6 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipeline jobs
 	jb := &Driver{
 		log:        log,
 		pq:         pq,
-		stopCh:     make(chan struct{}, 1),
 		recordsCh:  make(chan *kgo.Record, 100),
 		requeueCh:  make(chan *Item, 10),
 		commandsCh: cmder,
@@ -162,6 +162,9 @@ func FromPipeline(pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq
 		conf.SASL = sOpt
 	}
 
+	conf.AutoCreateTopics = pipeline.Bool(autoCreateTopicsEnableKey, false)
+	conf.Priority = pipeline.Int(priorityKey, 10)
+
 	opts, err := conf.InitDefault()
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -170,16 +173,12 @@ func FromPipeline(pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq
 	jb := &Driver{
 		log:        log,
 		pq:         pq,
-		stopCh:     make(chan struct{}, 1),
 		recordsCh:  make(chan *kgo.Record, 100),
 		requeueCh:  make(chan *Item, 10),
 		commandsCh: cmder,
 		delayed:    utils.Int64(0),
 		cfg:        &conf,
 	}
-
-	conf.AutoCreateTopics = pipeline.Bool(autoCreateTopicsEnableKey, false)
-	conf.Priority = pipeline.Int(priorityKey, 10)
 
 	jb.kafkaClient, err = kgo.NewClient(opts...)
 	if err != nil {
@@ -286,6 +285,15 @@ func (d *Driver) Resume(_ context.Context, p string) error {
 		return errors.Str("amqp listener is already in the active state")
 	}
 
+	d.once.Do(func() {
+		go func() {
+			err := d.listen()
+			if err != nil {
+				d.log.Error("listener error", zap.Error(err))
+			}
+		}()
+	})
+
 	if d.cfg.ConsumerOpts != nil {
 		d.kafkaClient.ResumeFetchTopics(d.cfg.ConsumerOpts.Topics...)
 	}
@@ -302,18 +310,24 @@ func (d *Driver) Stop(context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	defer func() {
+		close(d.requeueCh)
+		close(d.recordsCh)
+	}()
+
 	start := time.Now()
 	atomic.StoreUint32(&d.stopped, 1)
-	d.stopCh <- struct{}{}
 
-	// cancel the consumer
-	d.kafkaCancelCtx()
+	if d.kafkaCancelCtx != nil {
+		// cancel the consumer
+		d.kafkaCancelCtx()
+	}
 
-	close(d.requeueCh)
-	close(d.recordsCh)
+	d.kafkaClient.CloseAllowingRebalance()
 
 	pipe := *d.pipeline.Load()
 	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+
 	return nil
 }
 

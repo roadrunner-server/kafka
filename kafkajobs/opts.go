@@ -74,40 +74,40 @@ type config struct {
 }
 
 type SASL struct {
-	Type SASLMechanism `mapstructure:"type"`
+	Type SASLMechanism `mapstructure:"type" json:"type"`
 
 	// plain
-	Username string `mapstructure:"username"`
-	Password string `mapstructure:"password"`
-	Zid      string `mapstructure:"zid"`
+	Username string `mapstructure:"username" json:"username"`
+	Password string `mapstructure:"password" json:"password"`
+	Zid      string `mapstructure:"zid" json:"zid"`
 
 	// aws_msk_iam
-	AccessKey    string `mapstructure:"access_key"`
-	SecretKey    string `mapstructure:"secret_key"`
-	SessionToken string `mapstructure:"session_token"`
-	UserAgent    string `mapstructure:"user_agent"`
+	AccessKey    string `mapstructure:"access_key" json:"access_key"`
+	SecretKey    string `mapstructure:"secret_key" json:"secret_key"`
+	SessionToken string `mapstructure:"session_token" json:"session_token"`
+	UserAgent    string `mapstructure:"user_agent" json:"user_agent"`
 }
 
 type GroupOptions struct {
-	GroupID              string `mapstructure:"group_id"`
-	BlockRebalanceOnPoll bool   `mapstructure:"block_rebalance_on_poll"`
+	GroupID              string `mapstructure:"group_id" json:"group_id"`
+	BlockRebalanceOnPoll bool   `mapstructure:"block_rebalance_on_poll" json:"block_rebalance_on_poll"`
 }
 
 type ProducerOpts struct {
-	DisableIdempotent  bool             `mapstructure:"disable_idempotent"`
-	RequiredAcks       Acks             `mapstructure:"required_acks"`
-	MaxMessageBytes    int32            `mapstructure:"max_message_bytes"`
-	RequestTimeout     time.Duration    `mapstructure:"request_timeout"`
-	DeliveryTimeout    time.Duration    `mapstructure:"delivery_timeout"`
-	TransactionTimeout time.Duration    `mapstructure:"transaction_timeout"`
-	CompressionCodec   CompressionCodec `mapstructure:"compression_codec"`
+	DisableIdempotent  bool             `mapstructure:"disable_idempotent" json:"disable_idempotent"`
+	RequiredAcks       Acks             `mapstructure:"required_acks" json:"required_acks"`
+	MaxMessageBytes    int32            `mapstructure:"max_message_bytes" json:"max_message_bytes"`
+	RequestTimeout     time.Duration    `mapstructure:"request_timeout" json:"request_timeout"`
+	DeliveryTimeout    time.Duration    `mapstructure:"delivery_timeout" json:"delivery_timeout"`
+	TransactionTimeout time.Duration    `mapstructure:"transaction_timeout" json:"transaction_timeout"`
+	CompressionCodec   CompressionCodec `mapstructure:"compression_codec" json:"compression_codec"`
 }
 
 type ConsumerOpts struct {
-	Topics              []string                     `mapstructure:"topics"`
-	ConsumeRegexp       bool                         `mapstructure:"consume_regexp"`
-	MaxFetchMessageSize int32                        `mapstructure:"max_fetch_message_size"`
-	MinFetchMessageSize int32                        `mapstructure:"min_fetch_message_size"`
-	ConsumePartitions   map[string]map[int32]*Offset `mapstructure:"consume_partitions"`
-	ConsumerOffset      *Offset                      `mapstructure:"consumer_offset"`
+	Topics              []string                     `mapstructure:"topics" json:"topics"`
+	ConsumeRegexp       bool                         `mapstructure:"consume_regexp" json:"consume_regexp"`
+	MaxFetchMessageSize int32                        `mapstructure:"max_fetch_message_size" json:"max_fetch_message_size"`
+	MinFetchMessageSize int32                        `mapstructure:"min_fetch_message_size" json:"min_fetch_message_size"`
+	ConsumePartitions   map[string]map[int32]*Offset `mapstructure:"consume_partitions" json:"consume_partitions"`
+	ConsumerOffset      *Offset                      `mapstructure:"consumer_offset" json:"consumer_offset"`
 }

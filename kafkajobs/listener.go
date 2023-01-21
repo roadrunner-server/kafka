@@ -12,9 +12,10 @@ import (
 )
 
 func (d *Driver) listen() error {
+	var ctx context.Context
+	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
+
 	for {
-		var ctx context.Context
-		ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
 		fetches := d.kafkaClient.PollRecords(ctx, 10000)
 		if fetches.IsClientClosed() {
 			d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
@@ -80,6 +81,12 @@ func (d *Driver) listen() error {
 				// error is unrecoverable, stop the pipeline
 				d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
 				return errs[i].Err
+			case errors.Is(errs[i].Err, context.Canceled):
+				d.log.Info("consumer context canceled, stopping the listener",
+					zap.Error(errs[i].Err),
+					zap.String("topic", errs[i].Topic),
+					zap.Int32("partition", errs[i].Partition))
+				return nil
 
 			default:
 				d.log.Warn("retriable consumer error",
