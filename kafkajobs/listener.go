@@ -59,7 +59,7 @@ func (d *Driver) listen() error {
 				continue
 
 			case errors.Is(errs[i].Err, regErr):
-				errP := errs[i].Err.(*kerr.Error)
+				errP := errs[i].Err.(*kerr.Error) //nolint:errorlint
 				if errP.Retriable {
 					d.log.Warn("retriable consumer error",
 						zap.String("topic", errs[i].Topic),

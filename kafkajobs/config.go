@@ -199,7 +199,6 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 				kgo.ConsumePartitions(partitions)
 			}
 		}
-
 	}
 
 	return opts, nil

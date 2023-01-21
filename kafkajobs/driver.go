@@ -252,7 +252,7 @@ func (d *Driver) Pause(_ context.Context, p string) error {
 	start := time.Now()
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
-		return errors.Errorf("no such pipeline", zap.String("requested", p))
+		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
 	l := atomic.LoadUint32(&d.listeners)
@@ -277,13 +277,12 @@ func (d *Driver) Resume(_ context.Context, p string) error {
 	start := time.Now()
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
-		return errors.Errorf("no such pipeline", zap.String("requested", p))
+		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
 	l := atomic.LoadUint32(&d.listeners)
 	// no active listeners
 	if l == 1 {
-		//c.log.Warn("amqp listener is already in the active state")
 		return errors.Str("amqp listener is already in the active state")
 	}
 
