@@ -1,124 +1,78 @@
 package kafkajobs
 
 import (
-	"time"
+	"context"
 
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/roadrunner-server/errors"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl/aws"
+	"github.com/twmb/franz-go/pkg/sasl/plain"
 )
-
-// kafka configuration options
-// https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
-
-const (
-	// general options
-	topicKey             string = "topic"
-	priorityKey          string = "priority"
-	groupIDKey           string = "group_id"
-	partitionsOffsetsKey string = "partitions_offsets"
-	maxOpenRequestsKey   string = "max_open_requests"
-	clientIDKey          string = "client_id"
-	versionKey           string = "version"
-
-	// consumer opts
-	sessionTimeoutKey      string = "session_timeout"
-	heartbeatIntervalKey   string = "heartbeat_interval"
-	maxFetchMessageSizeKey string = "max_fetch_message_size"
-	minFetchMessageSizeKey string = "min_fetch_message_size"
-
-	// create topic opts
-	replicationFactorKey string = "replication_factor"
-	replicaAssignmentKey string = "replica_assignment"
-	configEntriesKey     string = "config_entries"
-
-	// producer opts
-	maxMessageSizeKey   string = "max_message_bytes"
-	requiredAcksKey     string = "required_acks"
-	timeoutKey          string = "timeout"
-	compressionCodecKey string = "compression_codec"
-	compressionLevelKey string = "compression_level"
-	idempotentKey       string = "idempotent"
-)
-
-type CompressionCodec string
-
-const (
-	none   CompressionCodec = "none"
-	gzip   CompressionCodec = "gzip"
-	snappy CompressionCodec = "snappy"
-	lz4    CompressionCodec = "lz4"
-	zstd   CompressionCodec = "zstd"
-)
-
-// config is used to parse pipeline configuration
-type config struct {
-	// global
-	Brokers []string `mapstructure:"brokers"`
-
-	// kafka local
-	Priority int `mapstructure:"priority"`
-
-	///// OLD -----------
-	GroupID         string `mapstructure:"group_id"`
-	MaxOpenRequests int    `mapstructure:"max_open_requests"`
-
-	ClientID string `mapstructure:"client_id"`
-	// in the semantic versioning form (e.g 2.11.0)
-	KafkaVersion string `mapstructure:"kafka_version"`
-
-	// consumer, producer and topics options
-	CreateTopic  *CreateTopics `mapstructure:"create_topics"`
-	ProducerOpts *ProducerOpts `mapstructure:"producer_options"`
-	ConsumerOpts *ConsumerOpts `mapstructure:"consumer_options"`
-
-	// private, combinations of partitions per-topic
-	topicPartitions map[string][]int32
-}
-
-type CreateTopics struct {
-	ReplicationFactor int16              `mapstructure:"replication_factor"`
-	ReplicaAssignment map[int32][]int32  `mapstructure:"replica_assignment"`
-	ConfigEntries     map[string]*string `mapstructure:"config_entries"`
-}
-
-type ProducerOpts struct {
-	DisableIdempotent  bool             `mapstructure:"disable_idempotent"`
-	RequiredAcks       string           `mapstructure:"required_acks"`
-	MaxMessageBytes    int32            `mapstructure:"max_message_bytes"`
-	RequestTimeout     time.Duration    `mapstructure:"request_timeout"`
-	DeliveryTimeout    time.Duration    `mapstructure:"delivery_timeout"`
-	TransactionTimeout time.Duration    `mapstructure:"transaction_timeout"`
-	CompressionCodec   CompressionCodec `mapstructure:"compression_codec"`
-}
-
-type ConsumerOpts struct {
-	// kafka
-	Topics              []string                    `mapstructure:"topics"`
-	ConsumeRegexp       bool                        `mapstructure:"consume_regexp"`
-	ConsumePartitions   map[string]map[int32]string `mapstructure:"consume_partitions"`
-	MaxFetchMessageSize int32                       `mapstructure:"max_fetch_message_size"`
-	MinFetchMessageSize int32                       `mapstructure:"min_fetch_message_size"`
-	ConsumeOffset       map[int32]int64             `mapstructure:"consume_offset"`
-	SessionTimeout      int                         `mapstructure:"session_timeout"`
-	HeartbeatInterval   int                         `mapstructure:"heartbeat_interval"`
-}
 
 func (c *config) InitDefault() ([]kgo.Opt, error) {
 	opts := make([]kgo.Opt, 0, 1)
 
-	//kgo.SeedBrokers(seeds...),
-	//kgo.ConsumerGroup("my-group-identifier"),
-	//kgo.ConsumeTopics("foo"),
-	//kgo.ConsumerGroup(""),
+	if c.AutoCreateTopics {
+		opts = append(opts, kgo.AllowAutoTopicCreation())
+	}
 
 	if c.Priority == 0 {
 		c.Priority = 10
 	}
 
-	//if len(c.ConsumePartitions) > 0 {
-	//	kp := make(map[string]map[int32]kgo.Offset)
-	//	kgo.ConsumePartitions(kp)
-	//}
+	if c.SASL != nil {
+		switch c.SASL.Type {
+		case basic:
+			kgo.SASL(plain.Plain(func(context.Context) (plain.Auth, error) {
+				return plain.Auth{
+					User: c.SASL.Username,
+					Zid:  c.SASL.Zid,
+					Pass: c.SASL.Password,
+				}, nil
+			}))
+		case awsMskIam:
+			sess, err := session.NewSession()
+			if err != nil {
+				return nil, errors.Errorf("unable to initialize aws session: %v", err)
+			}
+
+			kgo.SASL(aws.ManagedStreamingIAM(func(ctx context.Context) (aws.Auth, error) {
+				val, err := sess.Config.Credentials.GetWithContext(ctx)
+				if err == nil {
+					return aws.Auth{
+						AccessKey:    val.AccessKeyID,
+						SecretKey:    val.SecretAccessKey,
+						SessionToken: val.SessionToken,
+						UserAgent:    c.SASL.UserAgent,
+					}, nil
+				}
+
+				return aws.Auth{
+					AccessKey:    c.SASL.AccessKey,
+					SecretKey:    c.SASL.SecretKey,
+					SessionToken: c.SASL.SessionToken,
+					UserAgent:    c.SASL.UserAgent,
+				}, nil
+			}))
+		default:
+			return nil, errors.Errorf("unknown SASL authorization mechanism: %s", c.SASL.Type)
+		}
+	}
+
+	if c.GroupOpts != nil {
+		if c.GroupOpts.GroupID == "" {
+			return nil, errors.Str("no group for the group options")
+		}
+
+		opts = append(opts, kgo.ConsumerGroup(c.GroupOpts.GroupID))
+
+		if c.GroupOpts.BlockRebalanceOnPoll {
+			opts = append(opts, kgo.BlockRebalanceOnPoll())
+		}
+
+		opts = append(opts, kgo.AutoCommitMarks())
+	}
 
 	if c.ProducerOpts != nil {
 		if c.ProducerOpts.DisableIdempotent {
@@ -126,7 +80,16 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 		}
 
 		if c.ProducerOpts.RequiredAcks != "" {
-			opts = append(opts, kgo.RequiredAcks(kgo.LeaderAck()))
+			switch c.ProducerOpts.RequiredAcks {
+			case NoAck:
+				opts = append(opts, kgo.RequiredAcks(kgo.NoAck()))
+			case LeaderAck:
+				opts = append(opts, kgo.RequiredAcks(kgo.LeaderAck()))
+			case AllISRAck:
+				opts = append(opts, kgo.RequiredAcks(kgo.AllISRAcks()))
+			default:
+				return nil, errors.Errorf("unknown ACK option provided: %s", c.ProducerOpts.RequiredAcks)
+			}
 		}
 
 		if c.ProducerOpts.MaxMessageBytes != 0 {
@@ -160,14 +123,81 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 	}
 
 	if c.ConsumerOpts != nil {
-		if len(c.ConsumerOpts.Topics) > 0 {
+		switch {
+		case len(c.ConsumerOpts.Topics) > 0:
 			opts = append(opts, kgo.ConsumeTopics(c.ConsumerOpts.Topics...))
-		} else {
+		case len(c.ConsumerOpts.ConsumePartitions) > 0:
+		default:
 			return nil, errors.Str("topics should not be empty for the consumer")
+		}
+
+		if c.ConsumerOpts.ConsumerOffset != nil {
+			var offset kgo.Offset
+			val := c.ConsumerOpts.ConsumerOffset.Value
+			tp := c.ConsumerOpts.ConsumerOffset.Type
+
+			switch tp {
+			case At:
+				offset = kgo.NewOffset().At(val)
+			case AfterMilli:
+				offset = kgo.NewOffset().AfterMilli(val)
+			case AtEnd:
+				offset = kgo.NewOffset().AtEnd()
+			case AtStart:
+				offset = kgo.NewOffset().AtStart()
+			case Relative:
+				offset = kgo.NewOffset().Relative(val)
+			case WithEpoch:
+				offset = kgo.NewOffset().WithEpoch(int32(val))
+			default:
+				offset = kgo.NewOffset().AtStart()
+			}
+
+			opts = append(opts, kgo.ConsumeResetOffset(offset))
 		}
 
 		if c.ConsumerOpts.ConsumeRegexp {
 			opts = append(opts, kgo.ConsumeRegex())
+		}
+
+		if c.ConsumerOpts.MaxFetchMessageSize != 0 {
+			opts = append(opts, kgo.FetchMaxBytes(c.ConsumerOpts.MaxFetchMessageSize))
+		}
+
+		if c.ConsumerOpts.MinFetchMessageSize != 0 {
+			opts = append(opts, kgo.FetchMinBytes(c.ConsumerOpts.MinFetchMessageSize))
+		}
+
+		if len(c.ConsumerOpts.ConsumePartitions) > 0 {
+			partitions := make(map[string]map[int32]kgo.Offset, len(c.ConsumerOpts.ConsumePartitions))
+
+			for k, v := range c.ConsumerOpts.ConsumePartitions {
+				if len(v) > 0 {
+					kgoOff := make(map[int32]kgo.Offset, len(v))
+					for kk, vv := range v {
+						switch vv.Type {
+						case At:
+							kgoOff[kk] = kgo.NewOffset().At(vv.Value)
+						case AfterMilli:
+							kgoOff[kk] = kgo.NewOffset().AfterMilli(vv.Value)
+						case AtEnd:
+							kgoOff[kk] = kgo.NewOffset().AtEnd()
+						case AtStart:
+							kgoOff[kk] = kgo.NewOffset().AtStart()
+						case Relative:
+							kgoOff[kk] = kgo.NewOffset().Relative(vv.Value)
+						case WithEpoch:
+							kgoOff[kk] = kgo.NewOffset().WithEpoch(int32(vv.Value))
+						default:
+							return nil, errors.Errorf("unknown type: %s", vv.Type)
+						}
+					}
+
+					partitions[k] = kgoOff
+				}
+
+				kgo.ConsumePartitions(partitions)
+			}
 		}
 
 	}
