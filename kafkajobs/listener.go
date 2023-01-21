@@ -1,85 +1,112 @@
 package kafkajobs
 
 import (
+	"context"
 	"encoding/binary"
-	"sync"
+	"errors"
 
-	"github.com/Shopify/sarama"
-	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
-	"github.com/roadrunner-server/sdk/v3/utils"
+	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
+	"github.com/twmb/franz-go/pkg/kerr"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
 )
 
-// blocking function
-func (c *Consumer) initConsumer() ([]sarama.PartitionConsumer, error) {
-	var err error
-	c.kafkaConsumer, err = sarama.NewConsumerFromClient(c.kafkaClient)
-	if err != nil {
-		return nil, err
-	}
+func (d *Driver) listen() error {
+	var ctx context.Context
+	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
 
-	pConsumers := make([]sarama.PartitionConsumer, 0, 1)
-
-	// we have only 1 topic (rustatian)
-	for k, v := range c.cfg.topicPartitions {
-		for i := 0; i < len(v); i++ {
-			pc, errK := c.kafkaConsumer.ConsumePartition(k, v[i], c.cfg.PartitionsOffsets[v[i]])
-			if errK != nil {
-				return nil, errK
-			}
-
-			pConsumers = append(pConsumers, pc)
+	for {
+		fetches := d.kafkaClient.PollRecords(ctx, 10000)
+		if fetches.IsClientClosed() {
+			d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
+			return errors.New("client is closed, stopping the pipeline")
 		}
-	}
 
-	if len(pConsumers) == 0 {
-		/*
-			%v	the value in a default format
-				when printing structs, the plus flag (%+v) adds field names
-		*/
-		return nil, errors.Errorf("no consume configuration provided, please, check the `partitions_offsets` key: %+v", c.cfg.PartitionsOffsets)
-	}
+		// Errors returns all errors in a fetch with the topic and partition that
+		// errored.
+		//
+		// There are four classes of errors possible:
+		//
+		//  1. a normal kerr.Error; these are usually the non-retriable kerr.Errors,
+		//     but theoretically a non-retriable error can be fixed at runtime (auth
+		//     error? fix auth). It is worth restarting the client for these errors if
+		//     you do not intend to fix this problem at runtime.
+		//
+		//  2. an injected *ErrDataLoss; these are informational, the client
+		//     automatically resets consuming to where it should and resumes. This
+		//     error is worth logging and investigating, but not worth restarting the
+		//     client for.
+		//
+		//  3. an untyped batch parse failure; these are usually unrecoverable by
+		//     restarts, and it may be best to just let the client continue. However,
+		//     restarting is an option, but you may need to manually repair your
+		//     partition.
+		//
+		//  4. an injected ErrClientClosed; this is a fatal informational error that
+		//     is returned from every Poll call if the client has been closed.
+		//     A corresponding helper function IsClientClosed can be used to detect
+		//     this error.
 
-	return pConsumers, nil
-}
+		var edl *kgo.ErrDataLoss
+		var regErr *kerr.Error
+		errs := fetches.Errors()
+		for i := 0; i < len(errs); i++ {
+			switch {
+			case errors.Is(errs[i].Err, edl):
+				d.log.Warn("restarting consumer",
+					zap.String("topic", errs[i].Topic),
+					zap.Int32("partition", errs[i].Partition),
+					zap.Error(errs[i].Err))
+				continue
 
-func (c *Consumer) listen(pConsumers []sarama.PartitionConsumer) {
-	messagesCh := fanInConsumers(pConsumers)
-	errorsCh := fanInConsumersErrors(pConsumers)
-
-	go func() {
-		for {
-			select {
-			case <-c.stopCh:
-				for i := 0; i < len(pConsumers); i++ {
-					pConsumers[i].AsyncClose()
-				}
-				return
-			case msg := <-messagesCh:
-				if msg == nil {
-					c.log.Debug("nil message")
+			case errors.Is(errs[i].Err, regErr):
+				errP := errs[i].Err.(*kerr.Error) //nolint:errorlint
+				if errP.Retriable {
+					d.log.Warn("retriable consumer error",
+						zap.String("topic", errs[i].Topic),
+						zap.Int32("partition", errs[i].Partition),
+						zap.Int16("code", errP.Code),
+						zap.String("description", errP.Description),
+						zap.String("message", errP.Message))
 					continue
 				}
 
-				c.log.Debug("message pushed to the priority queue",
-					zap.String("topic", msg.Topic),
-					zap.Int32("partition", msg.Partition),
-					zap.Int64("offset", msg.Offset),
-					zap.Any("headers", msg.Headers),
-				)
+				d.log.Error("non-retriable consumer error",
+					zap.String("topic", errs[i].Topic),
+					zap.Int32("partition", errs[i].Partition),
+					zap.Int16("code", errP.Code),
+					zap.String("description", errP.Description),
+					zap.String("message", errP.Message))
 
-				c.pq.Insert(fromConsumer(msg, c.kafkaProducer, c.log))
-			case e := <-errorsCh:
-				if e != nil {
-					c.log.Error("consume error", zap.Error(e.Err))
-				}
+				// error is unrecoverable, stop the pipeline
+				d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
+				return errs[i].Err
+			case errors.Is(errs[i].Err, context.Canceled):
+				d.log.Info("consumer context canceled, stopping the listener",
+					zap.Error(errs[i].Err),
+					zap.String("topic", errs[i].Topic),
+					zap.Int32("partition", errs[i].Partition))
+				return nil
+
+			default:
+				d.log.Warn("retriable consumer error",
+					zap.Error(errs[i].Err),
+					zap.String("topic", errs[i].Topic),
+					zap.Int32("partition", errs[i].Partition))
 			}
 		}
-	}()
+
+		fetches.EachRecord(func(r *kgo.Record) {
+			d.pq.Insert(fromConsumer(r, d.requeueCh, d.recordsCh))
+		})
+
+		if d.cfg.GroupOpts != nil {
+			d.kafkaClient.AllowRebalance()
+		}
+	}
 }
 
-func fromConsumer(msg *sarama.ConsumerMessage, kp sarama.AsyncProducer, log *zap.Logger) *Item {
+func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
@@ -95,7 +122,7 @@ func fromConsumer(msg *sarama.ConsumerMessage, kp sarama.AsyncProducer, log *zap
 	headers := make(map[string][]string)
 
 	for i := 0; i < len(msg.Headers); i++ {
-		switch utils.AsString(msg.Headers[i].Key) {
+		switch msg.Headers[i].Key {
 		case jobs.RRJob:
 			rrjob = string(msg.Headers[i].Value)
 		case jobs.RRPipeline:
@@ -103,7 +130,7 @@ func fromConsumer(msg *sarama.ConsumerMessage, kp sarama.AsyncProducer, log *zap
 		case jobs.RRPriority:
 			rrpriority = int64(binary.LittleEndian.Uint64(msg.Headers[i].Value))
 		default:
-			headers[string(msg.Headers[i].Key)] = []string{string(msg.Headers[i].Value)}
+			headers[msg.Headers[i].Key] = []string{string(msg.Headers[i].Value)}
 		}
 	}
 
@@ -120,71 +147,24 @@ func fromConsumer(msg *sarama.ConsumerMessage, kp sarama.AsyncProducer, log *zap
 	}
 
 	item := &Item{
-		Job:     rrjob,
-		Ident:   string(msg.Key),
-		Payload: string(msg.Value),
-		Headers: headers,
+		Job:   rrjob,
+		Ident: string(msg.Key),
+		Pld:   string(msg.Value),
+		Hdrs:  headers,
+
+		requeueCh: reqCh,
+		commitsCh: commCh,
+		record:    msg,
+
 		Options: &Options{
 			Priority: rrpriority,
 			Pipeline: rrpipeline,
 
 			// private
-			partition: msg.Partition,
-			topic:     msg.Topic,
-			offset:    msg.Offset,
-			producer:  kp,
-			log:       log,
+			Partition: msg.Partition,
+			Topic:     msg.Topic,
+			Offset:    msg.Offset,
 		},
 	}
 	return item
-}
-
-func fanInConsumers(cons []sarama.PartitionConsumer) chan *sarama.ConsumerMessage { //nolint:dupl
-	out := make(chan *sarama.ConsumerMessage)
-	wg := sync.WaitGroup{}
-
-	output := func(c <-chan *sarama.ConsumerMessage) {
-		for msg := range c {
-			out <- msg
-		}
-		wg.Done()
-	}
-
-	wg.Add(len(cons))
-	for i := 0; i < len(cons); i++ {
-		ii := i
-		go output(cons[ii].Messages())
-	}
-
-	go func() {
-		wg.Wait()
-		close(out)
-	}()
-
-	return out
-}
-
-func fanInConsumersErrors(cons []sarama.PartitionConsumer) chan *sarama.ConsumerError { //nolint:dupl
-	out := make(chan *sarama.ConsumerError)
-	wg := sync.WaitGroup{}
-
-	output := func(c <-chan *sarama.ConsumerError) {
-		for msg := range c {
-			out <- msg
-		}
-		wg.Done()
-	}
-
-	wg.Add(len(cons))
-	for i := 0; i < len(cons); i++ {
-		ii := i
-		go output(cons[ii].Errors())
-	}
-
-	go func() {
-		wg.Wait()
-		close(out)
-	}()
-
-	return out
 }
