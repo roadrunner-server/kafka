@@ -284,7 +284,7 @@ func (d *Driver) Resume(_ context.Context, p string) error {
 	l := atomic.LoadUint32(&d.listeners)
 	// no active listeners
 	if l == 1 {
-		return errors.Str("amqp listener is already in the active state")
+		return errors.Str("kafka listener is already in the active state")
 	}
 
 	d.once.Do(func() {
