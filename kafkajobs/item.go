@@ -1,8 +1,6 @@
 package kafkajobs
 
 import (
-	"time"
-
 	"github.com/goccy/go-json"
 	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
 	"github.com/roadrunner-server/sdk/v4/utils"
@@ -21,9 +19,9 @@ type Item struct {
 	// Ident is unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
 	// Payload is string data (usually JSON) passed to Job broker.
-	Pld string `json:"payload"`
+	Payload string `json:"payload"`
 	// Headers with key-values pairs
-	Hdrs map[string][]string `json:"headers"`
+	Headers map[string][]string `json:"headers"`
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 
@@ -52,45 +50,6 @@ type Options struct {
 	Offset    int64
 }
 
-// DelayDuration returns delay duration in a form of time.Duration.
-func (o *Options) DelayDuration() time.Duration {
-	return time.Second * time.Duration(o.Delay)
-}
-
-func (i *Item) Headers() map[string][]string {
-	return i.Hdrs
-}
-
-func (i *Item) Name() string {
-	return i.Job
-}
-
-func (i *Item) Metadata() string {
-	if i.Options == nil {
-		return ""
-	}
-	return i.Options.Metadata
-}
-func (i *Item) Partition() int32 {
-	if i.Options == nil {
-		return 0
-	}
-	return i.Options.Partition
-}
-func (i *Item) Offset() int64 {
-	if i.Options == nil {
-		return 0
-	}
-	return i.Options.Offset
-}
-
-func (i *Item) Topic() string {
-	if i.Options == nil {
-		return ""
-	}
-	return i.Options.Topic
-}
-
 func (i *Item) ID() string {
 	return i.Ident
 }
@@ -101,7 +60,7 @@ func (i *Item) Priority() int64 {
 
 // Body packs job payload into binary payload.
 func (i *Item) Body() []byte {
-	return utils.AsBytes(i.Pld)
+	return utils.AsBytes(i.Payload)
 }
 
 // Context packs job context (job, id) into binary payload.
@@ -116,9 +75,9 @@ func (i *Item) Context() ([]byte, error) {
 			Topic     string              `json:"topic"`
 			Partition int32               `json:"partition"`
 			Offset    int64               `json:"offset"`
-		}{ID: i.ID(), Job: i.Name(), Headers: i.Headers(),
+		}{ID: i.ID(), Job: i.Job, Headers: i.Headers,
 			Pipeline: i.Options.Pipeline,
-			Topic:    i.Topic(), Partition: i.Partition(), Offset: i.Offset()},
+			Topic:    i.Options.Topic, Partition: i.Options.Partition, Offset: i.Options.Offset},
 	)
 
 	if err != nil {
@@ -150,10 +109,10 @@ func (i *Item) Copy() *Item {
 		Pipeline:  i.Options.Pipeline,
 		Delay:     i.Options.Delay,
 		AutoAck:   i.Options.AutoAck,
-		Topic:     i.Topic(),
-		Partition: i.Partition(),
-		Metadata:  i.Metadata(),
-		Offset:    i.Offset(),
+		Topic:     i.Options.Topic,
+		Partition: i.Options.Partition,
+		Metadata:  i.Options.Metadata,
+		Offset:    i.Options.Offset,
 	}
 
 	return item
@@ -162,7 +121,7 @@ func (i *Item) Copy() *Item {
 // Requeue with the provided delay, handled by the Nack
 func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	msg := i.Copy()
-	msg.Hdrs = headers
+	msg.Headers = headers
 
 	select {
 	case i.requeueCh <- msg:
@@ -179,10 +138,10 @@ func (i *Item) Respond(_ []byte, _ string) error {
 
 func fromJob(job jobs.Job) *Item {
 	return &Item{
-		Job:   job.Name(),
-		Ident: job.ID(),
-		Pld:   job.Payload(),
-		Hdrs:  job.Headers(),
+		Job:     job.Name(),
+		Ident:   job.ID(),
+		Payload: job.Payload(),
+		Headers: job.Headers(),
 		Options: &Options{
 			Priority: job.Priority(),
 			Pipeline: job.Pipeline(),

@@ -147,10 +147,10 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record) *I
 	}
 
 	item := &Item{
-		Job:   rrjob,
-		Ident: string(msg.Key),
-		Pld:   string(msg.Value),
-		Hdrs:  headers,
+		Job:     rrjob,
+		Ident:   string(msg.Key),
+		Payload: string(msg.Value),
+		Headers: headers,
 
 		requeueCh: reqCh,
 		commitsCh: commCh,

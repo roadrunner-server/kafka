@@ -337,11 +337,11 @@ func (d *Driver) Stop(context.Context) error {
 func (d *Driver) handleItem(msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
 
-	kh := make([]kgo.RecordHeader, 0, len(msg.Hdrs))
+	kh := make([]kgo.RecordHeader, 0, len(msg.Headers))
 
 	// only 1 header per key is supported
 	// RR_HEADERS
-	for k, v := range msg.Hdrs {
+	for k, v := range msg.Headers {
 		if len(v) > 0 {
 			kh = append(kh, kgo.RecordHeader{
 				Key:   k,
@@ -382,9 +382,9 @@ func (d *Driver) handleItem(msg *Item) error {
 		Value:     msg.Body(),
 		Headers:   kh,
 		Timestamp: time.Now(),
-		Topic:     msg.Topic(),
-		Partition: msg.Partition(),
-		Offset:    msg.Offset(),
+		Topic:     msg.Options.Topic,
+		Partition: msg.Options.Partition,
+		Offset:    msg.Options.Offset,
 	})
 
 	err := pr.FirstErr()
