@@ -19,6 +19,8 @@ import (
 
 const pluginName string = "kafka"
 
+var _ jobs.Driver = (*Driver)(nil)
+
 type Driver struct {
 	mu       sync.Mutex
 	log      *zap.Logger
