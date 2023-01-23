@@ -78,6 +78,7 @@ func (d *Driver) listen() error {
 						d.mu.Lock()
 						d.kafkaClient.PurgeTopicsFromClient(errs[i].Topic)
 						d.kafkaClient.AddConsumeTopics(errs[i].Topic)
+						d.kafkaClient.ForceMetadataRefresh()
 						d.mu.Unlock()
 					}
 
