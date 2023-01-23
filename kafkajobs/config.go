@@ -2,6 +2,7 @@ package kafkajobs
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/roadrunner-server/errors"
@@ -23,6 +24,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 	}
 
 	opts = append(opts, kgo.MaxVersions(kversion.Stable()))
+	opts = append(opts, kgo.RetryTimeout(time.Minute*5))
 
 	if c.SASL != nil {
 		switch c.SASL.Type {
