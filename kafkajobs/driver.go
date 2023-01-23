@@ -219,7 +219,7 @@ func (d *Driver) Run(_ context.Context, p jobs.Pipeline) error {
 	return nil
 }
 
-func (d *Driver) Push(_ context.Context, job jobs.Job) error {
+func (d *Driver) Push(ctx context.Context, job jobs.Job) error {
 	const op = errors.Op("kafka_push")
 	// check if the pipeline registered
 
@@ -229,7 +229,7 @@ func (d *Driver) Push(_ context.Context, job jobs.Job) error {
 		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", job.Pipeline(), pipe.Name()))
 	}
 
-	err := d.handleItem(fromJob(job))
+	err := d.handleItem(ctx, fromJob(job))
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -334,7 +334,7 @@ func (d *Driver) Stop(context.Context) error {
 }
 
 // handleItem
-func (d *Driver) handleItem(msg *Item) error {
+func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
 
 	kh := make([]kgo.RecordHeader, 0, len(msg.Headers))
@@ -377,7 +377,7 @@ func (d *Driver) handleItem(msg *Item) error {
 		Value: rrpri,
 	})
 
-	pr := d.kafkaClient.ProduceSync(context.Background(), &kgo.Record{
+	pr := d.kafkaClient.ProduceSync(ctx, &kgo.Record{
 		Key:       []byte(msg.ID()),
 		Value:     msg.Body(),
 		Headers:   kh,
@@ -414,7 +414,9 @@ func (d *Driver) recordsHandler() {
 
 func (d *Driver) requeueHandler() {
 	for item := range d.requeueCh {
-		err := d.handleItem(item)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		err := d.handleItem(ctx, item)
+		cancel()
 		if err != nil {
 			d.log.Error("failed to requeue the job", zap.Error(err))
 		}

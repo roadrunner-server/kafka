@@ -49,25 +49,39 @@ func (d *Driver) listen() error {
 
 		var edl *kgo.ErrDataLoss
 		var regErr *kerr.Error
+
 		errs := fetches.Errors()
 		for i := 0; i < len(errs); i++ {
 			switch {
-			case errors.Is(errs[i].Err, edl):
+			case errors.As(errs[i].Err, &edl):
 				d.log.Warn("restarting consumer",
 					zap.String("topic", errs[i].Topic),
 					zap.Int32("partition", errs[i].Partition),
 					zap.Error(errs[i].Err))
 				continue
 
-			case errors.Is(errs[i].Err, regErr):
+			case errors.As(errs[i].Err, &regErr):
 				errP := errs[i].Err.(*kerr.Error) //nolint:errorlint
+				// https://kafka.apache.org/protocol.html#protocol_error_codes
 				if errP.Retriable {
-					d.log.Warn("retriable consumer error",
+					d.log.Warn("retriable consumer error, restarting consumer",
 						zap.String("topic", errs[i].Topic),
 						zap.Int32("partition", errs[i].Partition),
 						zap.Int16("code", errP.Code),
 						zap.String("description", errP.Description),
 						zap.String("message", errP.Message))
+
+					// more codes will be added
+					switch errP.Code { //nolint:gocritic
+					// unknown_topic_id
+					case 100:
+						d.mu.Lock()
+						d.kafkaClient.PurgeTopicsFromClient(errs[i].Topic)
+						d.kafkaClient.AddConsumeTopics(errs[i].Topic)
+						d.kafkaClient.ForceMetadataRefresh()
+						d.mu.Unlock()
+					}
+
 					continue
 				}
 
