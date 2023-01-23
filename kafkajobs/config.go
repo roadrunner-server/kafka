@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/roadrunner-server/errors"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/kversion"
 	"github.com/twmb/franz-go/pkg/sasl/aws"
 	"github.com/twmb/franz-go/pkg/sasl/plain"
 )
@@ -20,6 +21,8 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 	if c.Priority == 0 {
 		c.Priority = 10
 	}
+
+	opts = append(opts, kgo.MaxVersions(kversion.Stable()))
 
 	if c.SASL != nil {
 		switch c.SASL.Type {
