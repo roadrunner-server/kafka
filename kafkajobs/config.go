@@ -23,6 +23,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 		c.Priority = 10
 	}
 
+	opts = append(opts, kgo.SeedBrokers(c.Brokers...))
 	opts = append(opts, kgo.MaxVersions(kversion.Stable()))
 	opts = append(opts, kgo.RetryTimeout(time.Minute*5))
 
