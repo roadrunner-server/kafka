@@ -16,7 +16,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
-	github.com/roadrunner-server/tcplisten v1.2.1 // indirect
+	github.com/roadrunner-server/tcplisten v1.3.0 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.4.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
