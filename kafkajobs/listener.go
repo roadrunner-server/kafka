@@ -8,6 +8,8 @@ import (
 	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
 
@@ -111,7 +113,16 @@ func (d *Driver) listen() error {
 		}
 
 		fetches.EachRecord(func(r *kgo.Record) {
-			d.pq.Insert(fromConsumer(r, d.requeueCh, d.recordsCh))
+			item := fromConsumer(r, d.requeueCh, d.recordsCh)
+
+			ctx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.Headers))
+			ctx, span := d.tracer.Tracer(tracerName).Start(ctx, "kafka_listener")
+
+			d.prop.Inject(ctx, propagation.HeaderCarrier(item.Headers))
+
+			d.pq.Insert(item)
+
+			span.End()
 		})
 
 		if d.cfg.GroupOpts != nil {
@@ -180,5 +191,6 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record) *I
 			Offset:    msg.Offset,
 		},
 	}
+
 	return item
 }
