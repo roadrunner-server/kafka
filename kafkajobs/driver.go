@@ -14,10 +14,18 @@ import (
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
+	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
-const pluginName string = "kafka"
+const (
+	pluginName string = "kafka"
+	tracerName string = "jobs"
+)
 
 var _ jobs.Driver = (*Driver)(nil)
 
@@ -27,6 +35,8 @@ type Driver struct {
 	pq       pq.Queue
 	pipeline atomic.Pointer[jobs.Pipeline]
 	cfg      *config
+	tracer   *sdktrace.TracerProvider
+	prop     propagation.TextMapPropagator
 
 	// kafka config
 	kafkaClient    *kgo.Client
@@ -50,8 +60,15 @@ type Configurer interface {
 }
 
 // FromConfig initializes kafka pipeline from the configuration
-func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq pq.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq pq.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
+
+	if tracer == nil {
+		tracer = sdktrace.NewTracerProvider()
+	}
+
+	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
+	otel.SetTextMapPropagator(prop)
 
 	// no global config
 	if !cfg.Has(pluginName) {
@@ -82,6 +99,8 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipeline jobs
 	// PARSE CONFIGURATION END -------
 
 	jb := &Driver{
+		tracer:     tracer,
+		prop:       prop,
 		log:        log,
 		pq:         pq,
 		recordsCh:  make(chan *kgo.Record, 100),
@@ -105,8 +124,15 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipeline jobs
 }
 
 // FromPipeline initializes pipeline on-the-fly
-func FromPipeline(pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
+
+	if tracer == nil {
+		tracer = sdktrace.NewTracerProvider()
+	}
+
+	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
+	otel.SetTextMapPropagator(prop)
 
 	// no global config
 	if !cfg.Has(pluginName) {
@@ -173,6 +199,8 @@ func FromPipeline(pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq
 	}
 
 	jb := &Driver{
+		tracer:     tracer,
+		prop:       prop,
 		log:        log,
 		pq:         pq,
 		recordsCh:  make(chan *kgo.Record, 100),
@@ -195,9 +223,12 @@ func FromPipeline(pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq
 	return jb, nil
 }
 
-func (d *Driver) Run(_ context.Context, p jobs.Pipeline) error {
-	start := time.Now()
+func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
+	start := time.Now().UTC()
 	const op = errors.Op("kafka_run")
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_run")
+	defer span.End()
 
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p.Name() {
@@ -221,7 +252,9 @@ func (d *Driver) Run(_ context.Context, p jobs.Pipeline) error {
 
 func (d *Driver) Push(ctx context.Context, job jobs.Job) error {
 	const op = errors.Op("kafka_push")
-	// check if the pipeline registered
+
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_push")
+	defer span.End()
 
 	// load atomic value
 	pipe := *d.pipeline.Load()
@@ -237,8 +270,11 @@ func (d *Driver) Push(ctx context.Context, job jobs.Job) error {
 	return nil
 }
 
-func (d *Driver) State(context.Context) (*jobs.State, error) {
+func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 	pipe := *d.pipeline.Load()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_state")
+	defer span.End()
 
 	return &jobs.State{
 		Priority: uint64(pipe.Priority()),
@@ -249,8 +285,12 @@ func (d *Driver) State(context.Context) (*jobs.State, error) {
 	}, nil
 }
 
-func (d *Driver) Pause(_ context.Context, p string) error {
-	start := time.Now()
+func (d *Driver) Pause(ctx context.Context, p string) error {
+	start := time.Now().UTC()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_pause")
+	defer span.End()
+
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
@@ -274,8 +314,12 @@ func (d *Driver) Pause(_ context.Context, p string) error {
 	return nil
 }
 
-func (d *Driver) Resume(_ context.Context, p string) error {
-	start := time.Now()
+func (d *Driver) Resume(ctx context.Context, p string) error {
+	start := time.Now().UTC()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_resume")
+	defer span.End()
+
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
@@ -308,7 +352,10 @@ func (d *Driver) Resume(_ context.Context, p string) error {
 	return nil
 }
 
-func (d *Driver) Stop(context.Context) error {
+func (d *Driver) Stop(ctx context.Context) error {
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_stop")
+	defer span.End()
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -317,7 +364,7 @@ func (d *Driver) Stop(context.Context) error {
 		close(d.recordsCh)
 	}()
 
-	start := time.Now()
+	start := time.Now().UTC()
 	atomic.StoreUint32(&d.stopped, 1)
 
 	if d.kafkaCancelCtx != nil {
@@ -328,6 +375,7 @@ func (d *Driver) Stop(context.Context) error {
 	d.kafkaClient.CloseAllowingRebalance()
 
 	pipe := *d.pipeline.Load()
+
 	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 
 	return nil
@@ -338,6 +386,7 @@ func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
 
 	kh := make([]kgo.RecordHeader, 0, len(msg.Headers))
+	d.prop.Inject(ctx, propagation.HeaderCarrier(msg.Headers))
 
 	// only 1 header per key is supported
 	// RR_HEADERS
@@ -381,7 +430,7 @@ func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 		Key:       []byte(msg.ID()),
 		Value:     msg.Body(),
 		Headers:   kh,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 		Topic:     msg.Options.Topic,
 		Partition: msg.Options.Partition,
 		Offset:    msg.Options.Offset,

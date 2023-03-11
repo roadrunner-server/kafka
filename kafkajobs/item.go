@@ -58,6 +58,10 @@ func (i *Item) Priority() int64 {
 	return i.Options.Priority
 }
 
+func (i *Item) Metadata() map[string][]string {
+	return i.Headers
+}
+
 // Body packs job payload into binary payload.
 func (i *Item) Body() []byte {
 	return utils.AsBytes(i.Payload)
