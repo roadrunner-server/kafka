@@ -77,7 +77,7 @@ func (i *Item) Context() ([]byte, error) {
 			Driver    string              `json:"driver"`
 			Headers   map[string][]string `json:"headers"`
 			Pipeline  string              `json:"pipeline"`
-			Topic     string              `json:"topic"`
+			Queue     string              `json:"queue"`
 			Partition int32               `json:"partition"`
 			Offset    int64               `json:"offset"`
 		}{
@@ -86,7 +86,7 @@ func (i *Item) Context() ([]byte, error) {
 			Driver:    pluginName,
 			Headers:   i.Headers,
 			Pipeline:  i.Options.Pipeline,
-			Topic:     i.Options.Topic,
+			Queue:     i.Options.Topic,
 			Partition: i.Options.Partition,
 			Offset:    i.Options.Offset,
 		},
