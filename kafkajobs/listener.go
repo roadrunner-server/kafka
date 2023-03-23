@@ -187,7 +187,7 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record) *I
 
 			// private
 			Partition: msg.Partition,
-			Topic:     msg.Topic,
+			Queue:     msg.Topic,
 			Offset:    msg.Offset,
 		},
 	}

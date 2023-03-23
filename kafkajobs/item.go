@@ -44,7 +44,7 @@ type Options struct {
 	// AutoAck option
 	AutoAck bool `json:"auto_ack"`
 
-	Topic     string
+	Queue     string
 	Metadata  string
 	Partition int32
 	Offset    int64
@@ -78,6 +78,7 @@ func (i *Item) Context() ([]byte, error) {
 			Headers   map[string][]string `json:"headers"`
 			Pipeline  string              `json:"pipeline"`
 			Queue     string              `json:"queue"`
+			Topic     string              `json:"topic"`
 			Partition int32               `json:"partition"`
 			Offset    int64               `json:"offset"`
 		}{
@@ -86,7 +87,8 @@ func (i *Item) Context() ([]byte, error) {
 			Driver:    pluginName,
 			Headers:   i.Headers,
 			Pipeline:  i.Options.Pipeline,
-			Queue:     i.Options.Topic,
+			Queue:     i.Options.Queue,
+			Topic:     i.Options.Queue,
 			Partition: i.Options.Partition,
 			Offset:    i.Options.Offset,
 		},
@@ -121,7 +123,7 @@ func (i *Item) Copy() *Item {
 		Pipeline:  i.Options.Pipeline,
 		Delay:     i.Options.Delay,
 		AutoAck:   i.Options.AutoAck,
-		Topic:     i.Options.Topic,
+		Queue:     i.Options.Queue,
 		Partition: i.Options.Partition,
 		Metadata:  i.Options.Metadata,
 		Offset:    i.Options.Offset,
@@ -160,7 +162,7 @@ func fromJob(job jobs.Job) *Item {
 			Delay:    job.Delay(),
 			AutoAck:  job.AutoAck(),
 
-			Topic:     job.Topic(),
+			Queue:     job.Topic(),
 			Metadata:  job.Metadata(),
 			Partition: job.Partition(),
 			Offset:    job.Offset(),

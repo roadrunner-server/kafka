@@ -431,7 +431,7 @@ func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 		Value:     msg.Body(),
 		Headers:   kh,
 		Timestamp: time.Now().UTC(),
-		Topic:     msg.Options.Topic,
+		Topic:     msg.Options.Queue,
 		Partition: msg.Options.Partition,
 		Offset:    msg.Options.Offset,
 	})

@@ -62,6 +62,8 @@ const (
 type config struct {
 	// global
 	Brokers []string `mapstructure:"brokers"`
+	SASL    *SASL    `mapstructure:"sasl"`
+
 	// kafka local
 	Priority         int  `mapstructure:"priority"`
 	AutoCreateTopics bool `mapstructure:"auto_create_topics_enable"`
@@ -70,7 +72,6 @@ type config struct {
 	ProducerOpts *ProducerOpts `mapstructure:"producer_options"`
 	ConsumerOpts *ConsumerOpts `mapstructure:"consumer_options"`
 	GroupOpts    *GroupOptions `mapstructure:"group_options"`
-	SASL         *SASL         `mapstructure:"sasl"`
 }
 
 type SASL struct {
