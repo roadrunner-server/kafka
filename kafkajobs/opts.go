@@ -64,14 +64,12 @@ type config struct {
 	Brokers []string `mapstructure:"brokers"`
 	SASL    *SASL    `mapstructure:"sasl"`
 
-	// kafka local
-	Priority         int  `mapstructure:"priority"`
-	AutoCreateTopics bool `mapstructure:"auto_create_topics_enable"`
-
-	// consumer, producer and topics options
-	ProducerOpts *ProducerOpts `mapstructure:"producer_options"`
-	ConsumerOpts *ConsumerOpts `mapstructure:"consumer_options"`
-	GroupOpts    *GroupOptions `mapstructure:"group_options"`
+	// pipeline
+	Priority         int           `mapstructure:"priority"`
+	AutoCreateTopics bool          `mapstructure:"auto_create_topics_enable"`
+	ProducerOpts     *ProducerOpts `mapstructure:"producer_options"`
+	ConsumerOpts     *ConsumerOpts `mapstructure:"consumer_options"`
+	GroupOpts        *GroupOptions `mapstructure:"group_options"`
 }
 
 type SASL struct {

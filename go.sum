@@ -1,7 +1,5 @@
-github.com/aws/aws-sdk-go v1.44.226 h1:lqTNeHJUq0U6dpMGJc9ZcmfTUkuAjklcwewj96RhMlc=
-github.com/aws/aws-sdk-go v1.44.226/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
-github.com/aws/aws-sdk-go v1.44.227 h1:HWNpINBu20yyfEXGHHSIsB955KUjWmZJETqnLIXizN4=
-github.com/aws/aws-sdk-go v1.44.227/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/aws-sdk-go v1.44.229 h1:lku0ZSHRzj/qtFVM//QE8VjV6kvJ6CFijDZSsjNaD9A=
+github.com/aws/aws-sdk-go v1.44.229/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -39,8 +37,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.8.2 h1:+h33VjcLVPDHtOdpUCuF+7gSuG3yGIftsP1YvFihtJ8=
 github.com/twmb/franz-go v1.13.1 h1:7dDuAjJItbZRjgmMzYzCfJtRMpVKfQ57yIG8SkZz24M=
 github.com/twmb/franz-go v1.13.1/go.mod h1:jm/FtYxmhxDTN0gNSb26XaJY0irdSVcsckLiR5tQNMk=
-github.com/twmb/franz-go/pkg/kmsg v1.4.0 h1:tbp9hxU6m8qZhQTlpGiaIJOm4BXix5lsuEZ7K00dF0s=
-github.com/twmb/franz-go/pkg/kmsg v1.4.0/go.mod h1:SxG/xJKhgPu25SamAq0rrucfp7lbzCpEXOC+vH/ELrY=
+github.com/twmb/franz-go/pkg/kmsg v1.5.0 h1:eqVJquFQLdBNLrRMWX03pPDPpngn6PTjGZLlZnagouk=
+github.com/twmb/franz-go/pkg/kmsg v1.5.0/go.mod h1:se9Mjdt0Nwzc9lnjJ0HyDtLyBnaBDAd7pCje47OhSyw=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 go.opentelemetry.io/contrib/propagators/jaeger v1.15.0 h1:xdJjwy5t/8I+TZehMMQ+r2h50HREihH2oMUhimQ+jug=
 go.opentelemetry.io/contrib/propagators/jaeger v1.15.0/go.mod h1:tU0nwW4QTvKceNUP60/PQm0FI8zDSwey7gIFt3RR/yw=
