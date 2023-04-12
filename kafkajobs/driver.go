@@ -72,7 +72,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 
 	// no global config
 	if !cfg.Has(pluginName) {
-		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/plugins-jobs/2.x/en"))
+		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/queues-kafka/2023.x/en"))
 	}
 
 	// no local config
@@ -136,7 +136,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 
 	// no global config
 	if !cfg.Has(pluginName) {
-		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/plugins-jobs/2.x/en"))
+		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/queues-kafka/2023.x/en"))
 	}
 
 	var conf config
