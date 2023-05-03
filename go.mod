@@ -11,9 +11,9 @@ require (
 	github.com/roadrunner-server/sdk/v4 v4.2.1
 	github.com/twmb/franz-go v1.13.3
 	go.opentelemetry.io/contrib/propagators/jaeger v1.16.0
-	go.opentelemetry.io/otel v1.15.0
-	go.opentelemetry.io/otel/sdk v1.15.0
-	go.opentelemetry.io/otel/trace v1.15.0
+	go.opentelemetry.io/otel v1.15.1
+	go.opentelemetry.io/otel/sdk v1.15.1
+	go.opentelemetry.io/otel/trace v1.15.1
 	go.uber.org/zap v1.24.0
 )
 
