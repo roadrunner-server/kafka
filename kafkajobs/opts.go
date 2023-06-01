@@ -73,7 +73,7 @@ type config struct {
 }
 
 type SASL struct {
-	Type SASLMechanism `mapstructure:"type" json:"type"`
+	Type SASLMechanism `mapstructure:"type" json:"mechanism"`
 
 	// plain
 	Username string `mapstructure:"username" json:"username"`
