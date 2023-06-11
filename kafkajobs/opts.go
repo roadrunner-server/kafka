@@ -43,8 +43,10 @@ const (
 type SASLMechanism string
 
 const (
-	basic     SASLMechanism = "plain"
-	awsMskIam SASLMechanism = "aws_msk_iam"
+	basic       SASLMechanism = "plain"
+	scramSha256 SASLMechanism = "SCRAM-SHA-256"
+	scramSha512 SASLMechanism = "SCRAM-SHA-512"
+	awsMskIam   SASLMechanism = "aws_msk_iam"
 )
 
 type OffsetTypes string
@@ -75,10 +77,12 @@ type config struct {
 type SASL struct {
 	Type SASLMechanism `mapstructure:"type" json:"mechanism"`
 
-	// plain
+	// plain + SHA
 	Username string `mapstructure:"username" json:"username"`
 	Password string `mapstructure:"password" json:"password"`
 	Zid      string `mapstructure:"zid" json:"zid"`
+	Nonce    []byte `mapstructure:"nonce" json:"nonce"`
+	IsToken  bool   `mapstructure:"is_token" json:"is_token"`
 
 	// aws_msk_iam
 	AccessKey    string `mapstructure:"access_key" json:"access_key"`
