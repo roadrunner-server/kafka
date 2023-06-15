@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
-	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
+	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -32,7 +31,7 @@ var _ jobs.Driver = (*Driver)(nil)
 type Driver struct {
 	mu       sync.Mutex
 	log      *zap.Logger
-	pq       pq.Queue
+	pq       jobs.Queue
 	pipeline atomic.Pointer[jobs.Pipeline]
 	cfg      *config
 	tracer   *sdktrace.TracerProvider
@@ -60,7 +59,7 @@ type Configurer interface {
 }
 
 // FromConfig initializes kafka pipeline from the configuration
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq pq.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq jobs.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -124,7 +123,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 }
 
 // FromPipeline initializes pipeline on-the-fly
-func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -250,7 +249,7 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	return nil
 }
 
-func (d *Driver) Push(ctx context.Context, job jobs.Job) error {
+func (d *Driver) Push(ctx context.Context, job jobs.Message) error {
 	const op = errors.Op("kafka_push")
 
 	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_push")
@@ -258,8 +257,8 @@ func (d *Driver) Push(ctx context.Context, job jobs.Job) error {
 
 	// load atomic value
 	pipe := *d.pipeline.Load()
-	if pipe.Name() != job.Pipeline() {
-		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", job.Pipeline(), pipe.Name()))
+	if pipe.Name() != job.PipelineID() {
+		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", job.PipelineID(), pipe.Name()))
 	}
 
 	err := d.handleItem(ctx, fromJob(job))
@@ -354,18 +353,17 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 
 func (d *Driver) Stop(ctx context.Context) error {
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_stop")
-	defer span.End()
 
 	d.mu.Lock()
-	defer d.mu.Unlock()
 
 	defer func() {
 		close(d.requeueCh)
 		close(d.recordsCh)
+		d.mu.Unlock()
+		span.End()
 	}()
 
 	start := time.Now().UTC()
-	atomic.StoreUint32(&d.stopped, 1)
 
 	if d.kafkaCancelCtx != nil {
 		// cancel the consumer
@@ -373,6 +371,8 @@ func (d *Driver) Stop(ctx context.Context) error {
 	}
 
 	d.kafkaClient.CloseAllowingRebalance()
+
+	atomic.StoreUint32(&d.stopped, 1)
 
 	pipe := *d.pipeline.Load()
 
@@ -385,12 +385,12 @@ func (d *Driver) Stop(ctx context.Context) error {
 func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
 
-	kh := make([]kgo.RecordHeader, 0, len(msg.Headers))
-	d.prop.Inject(ctx, propagation.HeaderCarrier(msg.Headers))
+	kh := make([]kgo.RecordHeader, 0, len(msg.headers))
+	d.prop.Inject(ctx, propagation.HeaderCarrier(msg.headers))
 
 	// only 1 header per key is supported
 	// RR_HEADERS
-	for k, v := range msg.Headers {
+	for k, v := range msg.headers {
 		if len(v) > 0 {
 			kh = append(kh, kgo.RecordHeader{
 				Key:   k,

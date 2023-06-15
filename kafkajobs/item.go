@@ -2,12 +2,12 @@ package kafkajobs
 
 import (
 	"github.com/goccy/go-json"
-	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-var _ jobs.Acknowledger = (*Item)(nil)
+var _ jobs.Job = (*Item)(nil)
 
 const (
 	auto string = "deduced_by_rr"
@@ -21,7 +21,7 @@ type Item struct {
 	// Payload is string data (usually JSON) passed to Job broker.
 	Payload string `json:"payload"`
 	// Headers with key-values pairs
-	Headers map[string][]string `json:"headers"`
+	headers map[string][]string
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 
@@ -58,8 +58,12 @@ func (i *Item) Priority() int64 {
 	return i.Options.Priority
 }
 
-func (i *Item) Metadata() map[string][]string {
-	return i.Headers
+func (i *Item) PipelineID() string {
+	return i.Options.Pipeline
+}
+
+func (i *Item) Headers() map[string][]string {
+	return i.headers
 }
 
 // Body packs job payload into binary payload.
@@ -85,7 +89,7 @@ func (i *Item) Context() ([]byte, error) {
 			ID:        i.ID(),
 			Job:       i.Job,
 			Driver:    pluginName,
-			Headers:   i.Headers,
+			Headers:   i.headers,
 			Pipeline:  i.Options.Pipeline,
 			Queue:     i.Options.Queue,
 			Topic:     i.Options.Queue,
@@ -135,7 +139,7 @@ func (i *Item) Copy() *Item {
 // Requeue with the provided delay, handled by the Nack
 func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	msg := i.Copy()
-	msg.Headers = headers
+	msg.headers = headers
 
 	select {
 	case i.requeueCh <- msg:
@@ -150,15 +154,15 @@ func (i *Item) Respond(_ []byte, _ string) error {
 	return nil
 }
 
-func fromJob(job jobs.Job) *Item {
+func fromJob(job jobs.Message) *Item {
 	return &Item{
 		Job:     job.Name(),
 		Ident:   job.ID(),
 		Payload: job.Payload(),
-		Headers: job.Headers(),
+		headers: job.Headers(),
 		Options: &Options{
 			Priority: job.Priority(),
-			Pipeline: job.Pipeline(),
+			Pipeline: job.PipelineID(),
 			Delay:    job.Delay(),
 			AutoAck:  job.AutoAck(),
 
