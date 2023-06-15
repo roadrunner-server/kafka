@@ -46,7 +46,6 @@ type Driver struct {
 	listeners  uint32
 	delayed    *int64
 	commandsCh chan<- jobs.Commander
-	stopped    uint32
 
 	once sync.Once
 }
@@ -372,9 +371,10 @@ func (d *Driver) Stop(ctx context.Context) error {
 
 	d.kafkaClient.CloseAllowingRebalance()
 
-	atomic.StoreUint32(&d.stopped, 1)
-
 	pipe := *d.pipeline.Load()
+
+	// remove all pending JOBS associated with the pipeline
+	_ = d.pq.Remove(pipe.Name())
 
 	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 
