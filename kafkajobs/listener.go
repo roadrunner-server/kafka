@@ -17,10 +17,15 @@ func (d *Driver) listen() error {
 	var ctx context.Context
 	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
 
+	defer func() {
+		d.log.Debug("kafka listener stopped")
+	}()
+
 	for {
 		fetches := d.kafkaClient.PollRecords(ctx, 10000)
 		if fetches.IsClientClosed() {
 			d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
+			d.log.Debug("kafka client closed, sending pipeline stop command")
 			return errors.New("client is closed, stopping the pipeline")
 		}
 
@@ -114,7 +119,7 @@ func (d *Driver) listen() error {
 		}
 
 		fetches.EachRecord(func(r *kgo.Record) {
-			item := fromConsumer(r, d.requeueCh, d.recordsCh)
+			item := fromConsumer(r, d.requeueCh, d.recordsCh, &d.stopped)
 
 			ctx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 			ctx, span := d.tracer.Tracer(tracerName).Start(ctx, "kafka_listener")
@@ -132,7 +137,7 @@ func (d *Driver) listen() error {
 	}
 }
 
-func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record) *Item {
+func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, stopped *uint64) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
@@ -178,6 +183,7 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record) *I
 		Payload: string(msg.Value),
 		headers: headers,
 
+		stopped:   stopped,
 		requeueCh: reqCh,
 		commitsCh: commCh,
 		record:    msg,

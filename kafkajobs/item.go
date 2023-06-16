@@ -1,8 +1,11 @@
 package kafkajobs
 
 import (
+	"sync/atomic"
+
 	"github.com/goccy/go-json"
 	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
+	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -27,6 +30,7 @@ type Item struct {
 
 	// kafka related fields
 	// private (used to commit messages)
+	stopped   *uint64
 	commitsCh chan *kgo.Record
 	requeueCh chan *Item
 	record    *kgo.Record
@@ -106,11 +110,16 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) Ack() error {
+	// check if we have jobs in worker, but the consumer was already stopped
+	// TODO: should not be needed after logic update
+	if atomic.LoadUint64(i.stopped) == 1 {
+		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
+	}
 	select {
 	case i.commitsCh <- i.record:
 		return nil
 	default:
-		return nil
+		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
 }
 
@@ -138,6 +147,12 @@ func (i *Item) Copy() *Item {
 
 // Requeue with the provided delay, handled by the Nack
 func (i *Item) Requeue(headers map[string][]string, _ int64) error {
+	// check if we have jobs in worker, but the consumer was already stopped
+	// TODO: should not be needed after logic update
+	if atomic.LoadUint64(i.stopped) == 1 {
+		return errors.Str("failed to requeue the JOB, the pipeline is probably stopped")
+	}
+
 	msg := i.Copy()
 	msg.headers = headers
 
@@ -145,7 +160,7 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	case i.requeueCh <- msg:
 		return nil
 	default:
-		return nil
+		return errors.Str("failed to requeue the JOB, the pipeline is probably stopped")
 	}
 }
 

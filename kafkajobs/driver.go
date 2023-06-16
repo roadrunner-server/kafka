@@ -46,6 +46,7 @@ type Driver struct {
 	listeners  uint32
 	delayed    *int64
 	commandsCh chan<- jobs.Commander
+	stopped    uint64
 
 	once sync.Once
 }
@@ -101,6 +102,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		prop:       prop,
 		log:        log,
 		pq:         pq,
+		stopped:    0,
 		recordsCh:  make(chan *kgo.Record, 100),
 		requeueCh:  make(chan *Item, 10),
 		commandsCh: cmder,
@@ -201,6 +203,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		prop:       prop,
 		log:        log,
 		pq:         pq,
+		stopped:    0,
 		recordsCh:  make(chan *kgo.Record, 100),
 		requeueCh:  make(chan *Item, 10),
 		commandsCh: cmder,
@@ -300,9 +303,11 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 		return errors.Str("no active listeners, nothing to pause")
 	}
 
+	d.mu.Lock()
 	if d.cfg.ConsumerOpts != nil {
 		d.kafkaClient.PauseFetchTopics(d.cfg.ConsumerOpts.Topics...)
 	}
+	d.mu.Unlock()
 
 	// remove active listener
 	atomic.AddUint32(&d.listeners, ^uint32(0))
@@ -338,9 +343,11 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 		}()
 	})
 
+	d.mu.Lock()
 	if d.cfg.ConsumerOpts != nil {
 		d.kafkaClient.ResumeFetchTopics(d.cfg.ConsumerOpts.Topics...)
 	}
+	d.mu.Unlock()
 
 	// increase number of listeners
 	atomic.StoreUint32(&d.listeners, 1)
@@ -354,6 +361,8 @@ func (d *Driver) Stop(ctx context.Context) error {
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_stop")
 
 	d.mu.Lock()
+	// set the stopped state
+	atomic.StoreUint64(&d.stopped, 1)
 
 	defer func() {
 		close(d.requeueCh)
@@ -371,6 +380,7 @@ func (d *Driver) Stop(ctx context.Context) error {
 
 	d.kafkaClient.CloseAllowingRebalance()
 
+	// properly check for the listeners
 	pipe := *d.pipeline.Load()
 
 	// remove all pending JOBS associated with the pipeline
