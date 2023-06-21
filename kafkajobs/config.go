@@ -10,6 +10,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kversion"
 	"github.com/twmb/franz-go/pkg/sasl/aws"
 	"github.com/twmb/franz-go/pkg/sasl/plain"
+	"github.com/twmb/franz-go/pkg/sasl/scram"
 )
 
 func (c *config) InitDefault() ([]kgo.Opt, error) {
@@ -29,6 +30,26 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 
 	if c.SASL != nil {
 		switch c.SASL.Type {
+		case scramSha256:
+			kgo.SASL(scram.Sha256(func(context.Context) (scram.Auth, error) {
+				return scram.Auth{
+					Zid:     c.SASL.Zid,
+					User:    c.SASL.Username,
+					Pass:    c.SASL.Password,
+					Nonce:   c.SASL.Nonce,
+					IsToken: c.SASL.IsToken,
+				}, nil
+			}))
+		case scramSha512:
+			kgo.SASL(scram.Sha512(func(context.Context) (scram.Auth, error) {
+				return scram.Auth{
+					Zid:     c.SASL.Zid,
+					User:    c.SASL.Username,
+					Pass:    c.SASL.Password,
+					Nonce:   c.SASL.Nonce,
+					IsToken: c.SASL.IsToken,
+				}, nil
+			}))
 		case basic:
 			kgo.SASL(plain.Plain(func(context.Context) (plain.Auth, error) {
 				return plain.Auth{
