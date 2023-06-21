@@ -259,8 +259,8 @@ func (d *Driver) Push(ctx context.Context, job jobs.Message) error {
 
 	// load atomic value
 	pipe := *d.pipeline.Load()
-	if pipe.Name() != job.PipelineID() {
-		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", job.PipelineID(), pipe.Name()))
+	if pipe.Name() != job.GroupID() {
+		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", job.GroupID(), pipe.Name()))
 	}
 
 	err := d.handleItem(ctx, fromJob(job))
