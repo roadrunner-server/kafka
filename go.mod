@@ -3,23 +3,18 @@ module github.com/roadrunner-server/kafka/v4
 go 1.20
 
 require (
-	github.com/aws/aws-sdk-go v1.44.282
+	github.com/aws/aws-sdk-go v1.44.286
 	github.com/goccy/go-json v0.10.2
-	github.com/roadrunner-server/api/v4 v4.3.2
+	github.com/roadrunner-server/api/v4 v4.5.0
 	github.com/roadrunner-server/endure/v2 v2.2.1
 	github.com/roadrunner-server/errors v1.2.0
-	github.com/roadrunner-server/sdk/v4 v4.2.6
+	github.com/roadrunner-server/sdk/v4 v4.3.0
 	github.com/twmb/franz-go v1.13.5
 	go.opentelemetry.io/contrib/propagators/jaeger v1.17.0
 	go.opentelemetry.io/otel v1.16.0
 	go.opentelemetry.io/otel/sdk v1.16.0
 	go.opentelemetry.io/otel/trace v1.16.0
 	go.uber.org/zap v1.24.0
-)
-
-replace (
-	github.com/roadrunner-server/api/v4 => ../../api
-	github.com/roadrunner-server/sdk/v4 => ../../sdk
 )
 
 require (
