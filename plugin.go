@@ -1,8 +1,7 @@
 package kafka
 
 import (
-	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
+	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
 	"github.com/roadrunner-server/endure/v2/dep"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/kafka/v4/kafkajobs"
@@ -66,11 +65,11 @@ func (p *Plugin) Collects() []*dep.In {
 }
 
 // DriverFromConfig constructs kafka driver from the .rr.yaml configuration
-func (p *Plugin) DriverFromConfig(configKey string, pq pq.Queue, pipeline jobs.Pipeline, cmder chan<- jobs.Commander) (jobs.Driver, error) {
+func (p *Plugin) DriverFromConfig(configKey string, pq jobs.Queue, pipeline jobs.Pipeline, cmder chan<- jobs.Commander) (jobs.Driver, error) {
 	return kafkajobs.FromConfig(p.tracer, configKey, p.log, p.cfg, pipeline, pq, cmder)
 }
 
 // DriverFromPipeline constructs kafka driver from pipeline
-func (p *Plugin) DriverFromPipeline(pipe jobs.Pipeline, pq pq.Queue, cmder chan<- jobs.Commander) (jobs.Driver, error) {
+func (p *Plugin) DriverFromPipeline(pipe jobs.Pipeline, pq jobs.Queue, cmder chan<- jobs.Commander) (jobs.Driver, error) {
 	return kafkajobs.FromPipeline(p.tracer, pipe, p.log, p.cfg, pq, cmder)
 }

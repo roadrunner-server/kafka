@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.opentelemetry.io/otel"
@@ -17,10 +17,15 @@ func (d *Driver) listen() error {
 	var ctx context.Context
 	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
 
+	defer func() {
+		d.log.Debug("kafka listener stopped")
+	}()
+
 	for {
 		fetches := d.kafkaClient.PollRecords(ctx, 10000)
 		if fetches.IsClientClosed() {
 			d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
+			d.log.Debug("kafka client closed, sending pipeline stop command")
 			return errors.New("client is closed, stopping the pipeline")
 		}
 
@@ -65,7 +70,8 @@ func (d *Driver) listen() error {
 			case errors.As(errs[i].Err, &regErr):
 				errP := errs[i].Err.(*kerr.Error) //nolint:errorlint
 				// https://kafka.apache.org/protocol.html#protocol_error_codes
-				if errP.Retriable {
+				switch errP.Retriable {
+				case true:
 					d.log.Warn("retriable consumer error, restarting consumer",
 						zap.String("topic", errs[i].Topic),
 						zap.Int32("partition", errs[i].Partition),
@@ -83,20 +89,20 @@ func (d *Driver) listen() error {
 						d.kafkaClient.ForceMetadataRefresh()
 						d.mu.Unlock()
 					}
-
 					continue
+				case false:
+					d.log.Error("non-retriable consumer error",
+						zap.String("topic", errs[i].Topic),
+						zap.Int32("partition", errs[i].Partition),
+						zap.Int16("code", errP.Code),
+						zap.String("description", errP.Description),
+						zap.String("message", errP.Message))
+
+					// error is unrecoverable, stop the pipeline
+					d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
+					return errs[i].Err
 				}
 
-				d.log.Error("non-retriable consumer error",
-					zap.String("topic", errs[i].Topic),
-					zap.Int32("partition", errs[i].Partition),
-					zap.Int16("code", errP.Code),
-					zap.String("description", errP.Description),
-					zap.String("message", errP.Message))
-
-				// error is unrecoverable, stop the pipeline
-				d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
-				return errs[i].Err
 			case errors.Is(errs[i].Err, context.Canceled):
 				d.log.Info("consumer context canceled, stopping the listener",
 					zap.Error(errs[i].Err),
@@ -113,12 +119,12 @@ func (d *Driver) listen() error {
 		}
 
 		fetches.EachRecord(func(r *kgo.Record) {
-			item := fromConsumer(r, d.requeueCh, d.recordsCh)
+			item := fromConsumer(r, d.requeueCh, d.recordsCh, &d.stopped)
 
-			ctx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.Headers))
+			ctx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 			ctx, span := d.tracer.Tracer(tracerName).Start(ctx, "kafka_listener")
 
-			d.prop.Inject(ctx, propagation.HeaderCarrier(item.Headers))
+			d.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
 
 			d.pq.Insert(item)
 
@@ -131,7 +137,7 @@ func (d *Driver) listen() error {
 	}
 }
 
-func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record) *Item {
+func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, stopped *uint64) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
@@ -175,8 +181,9 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record) *I
 		Job:     rrjob,
 		Ident:   string(msg.Key),
 		Payload: string(msg.Value),
-		Headers: headers,
+		headers: headers,
 
+		stopped:   stopped,
 		requeueCh: reqCh,
 		commitsCh: commCh,
 		record:    msg,
