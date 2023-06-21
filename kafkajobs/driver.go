@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
-	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
+	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -32,7 +31,7 @@ var _ jobs.Driver = (*Driver)(nil)
 type Driver struct {
 	mu       sync.Mutex
 	log      *zap.Logger
-	pq       pq.Queue
+	pq       jobs.Queue
 	pipeline atomic.Pointer[jobs.Pipeline]
 	cfg      *config
 	tracer   *sdktrace.TracerProvider
@@ -47,7 +46,7 @@ type Driver struct {
 	listeners  uint32
 	delayed    *int64
 	commandsCh chan<- jobs.Commander
-	stopped    uint32
+	stopped    uint64
 
 	once sync.Once
 }
@@ -60,7 +59,7 @@ type Configurer interface {
 }
 
 // FromConfig initializes kafka pipeline from the configuration
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq pq.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq jobs.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -103,6 +102,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		prop:       prop,
 		log:        log,
 		pq:         pq,
+		stopped:    0,
 		recordsCh:  make(chan *kgo.Record, 100),
 		requeueCh:  make(chan *Item, 10),
 		commandsCh: cmder,
@@ -124,7 +124,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 }
 
 // FromPipeline initializes pipeline on-the-fly
-func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -203,6 +203,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		prop:       prop,
 		log:        log,
 		pq:         pq,
+		stopped:    0,
 		recordsCh:  make(chan *kgo.Record, 100),
 		requeueCh:  make(chan *Item, 10),
 		commandsCh: cmder,
@@ -250,7 +251,7 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	return nil
 }
 
-func (d *Driver) Push(ctx context.Context, job jobs.Job) error {
+func (d *Driver) Push(ctx context.Context, job jobs.Message) error {
 	const op = errors.Op("kafka_push")
 
 	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_push")
@@ -258,8 +259,8 @@ func (d *Driver) Push(ctx context.Context, job jobs.Job) error {
 
 	// load atomic value
 	pipe := *d.pipeline.Load()
-	if pipe.Name() != job.Pipeline() {
-		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", job.Pipeline(), pipe.Name()))
+	if pipe.Name() != job.GroupID() {
+		return errors.E(op, errors.Errorf("no such pipeline: %s, actual: %s", job.GroupID(), pipe.Name()))
 	}
 
 	err := d.handleItem(ctx, fromJob(job))
@@ -302,9 +303,11 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 		return errors.Str("no active listeners, nothing to pause")
 	}
 
+	d.mu.Lock()
 	if d.cfg.ConsumerOpts != nil {
 		d.kafkaClient.PauseFetchTopics(d.cfg.ConsumerOpts.Topics...)
 	}
+	d.mu.Unlock()
 
 	// remove active listener
 	atomic.AddUint32(&d.listeners, ^uint32(0))
@@ -340,9 +343,11 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 		}()
 	})
 
+	d.mu.Lock()
 	if d.cfg.ConsumerOpts != nil {
 		d.kafkaClient.ResumeFetchTopics(d.cfg.ConsumerOpts.Topics...)
 	}
+	d.mu.Unlock()
 
 	// increase number of listeners
 	atomic.StoreUint32(&d.listeners, 1)
@@ -354,18 +359,19 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 
 func (d *Driver) Stop(ctx context.Context) error {
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_stop")
-	defer span.End()
 
 	d.mu.Lock()
-	defer d.mu.Unlock()
+	// set the stopped state
+	atomic.StoreUint64(&d.stopped, 1)
 
 	defer func() {
 		close(d.requeueCh)
 		close(d.recordsCh)
+		d.mu.Unlock()
+		span.End()
 	}()
 
 	start := time.Now().UTC()
-	atomic.StoreUint32(&d.stopped, 1)
 
 	if d.kafkaCancelCtx != nil {
 		// cancel the consumer
@@ -374,7 +380,11 @@ func (d *Driver) Stop(ctx context.Context) error {
 
 	d.kafkaClient.CloseAllowingRebalance()
 
+	// properly check for the listeners
 	pipe := *d.pipeline.Load()
+
+	// remove all pending JOBS associated with the pipeline
+	_ = d.pq.Remove(pipe.Name())
 
 	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 
@@ -385,12 +395,12 @@ func (d *Driver) Stop(ctx context.Context) error {
 func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 	const op = errors.Op("kafka_handle_item")
 
-	kh := make([]kgo.RecordHeader, 0, len(msg.Headers))
-	d.prop.Inject(ctx, propagation.HeaderCarrier(msg.Headers))
+	kh := make([]kgo.RecordHeader, 0, len(msg.headers))
+	d.prop.Inject(ctx, propagation.HeaderCarrier(msg.headers))
 
 	// only 1 header per key is supported
 	// RR_HEADERS
-	for k, v := range msg.Headers {
+	for k, v := range msg.headers {
 		if len(v) > 0 {
 			kh = append(kh, kgo.RecordHeader{
 				Key:   k,
