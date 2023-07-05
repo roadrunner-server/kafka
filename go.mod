@@ -3,7 +3,7 @@ module github.com/roadrunner-server/kafka/v4
 go 1.20
 
 require (
-	github.com/aws/aws-sdk-go v1.44.295
+	github.com/aws/aws-sdk-go v1.44.296
 	github.com/goccy/go-json v0.10.2
 	github.com/roadrunner-server/api/v4 v4.5.0
 	github.com/roadrunner-server/endure/v2 v2.2.1
@@ -28,6 +28,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.10.0 // indirect
+	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 )
