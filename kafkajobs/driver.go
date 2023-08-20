@@ -115,6 +115,18 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		return nil, errors.E(op, err)
 	}
 
+	if conf.Ping != nil {
+		pingCtx, pingCancel := context.WithTimeout(context.Background(), conf.Ping.Timeout)
+		defer pingCancel()
+
+		err := jb.kafkaClient.Ping(pingCtx)
+		if err != nil {
+			return nil, errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
+		}
+
+		log.Debug("ping kafka: ok", zap.String("driver", pipeline.Driver()), zap.String("pipeline", pipeline.Name()))
+	}
+
 	jb.pipeline.Store(&pipeline)
 
 	go jb.recordsHandler()
@@ -216,6 +228,18 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		return nil, errors.E(op, err)
 	}
 
+	if conf.Ping != nil {
+		pingCtx, pingCancel := context.WithTimeout(context.Background(), conf.Ping.Timeout)
+		defer pingCancel()
+
+		err := jb.kafkaClient.Ping(pingCtx)
+		if err != nil {
+			return nil, errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
+		}
+
+		log.Debug("ping kafka: ok", zap.String("driver", pipeline.Driver()), zap.String("pipeline", pipeline.Name()))
+	}
+
 	jb.pipeline.Store(&pipeline)
 
 	go jb.recordsHandler()
@@ -234,18 +258,6 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p.Name() {
 		return errors.E(op, errors.Errorf("no such pipeline registered: %s", pipe.Name()))
-	}
-
-	if d.cfg.Ping != nil {
-		pingCtx, pingCancel := context.WithTimeout(ctx, d.cfg.Ping.Timeout)
-		defer pingCancel()
-
-		err := d.kafkaClient.Ping(pingCtx)
-		if err != nil {
-			return errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
-		}
-
-		d.log.Debug("ping kafka: ok", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()))
 	}
 
 	d.mu.Lock()
