@@ -115,17 +115,15 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		return nil, errors.E(op, err)
 	}
 
-	if conf.Ping != nil {
-		pingCtx, pingCancel := context.WithTimeout(context.Background(), conf.Ping.Timeout)
-		defer pingCancel()
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), conf.Ping.Timeout)
+	defer pingCancel()
 
-		err := jb.kafkaClient.Ping(pingCtx)
-		if err != nil {
-			return nil, errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
-		}
-
-		log.Debug("ping kafka: ok", zap.String("driver", pipeline.Driver()), zap.String("pipeline", pipeline.Name()))
+	err = jb.kafkaClient.Ping(pingCtx)
+	if err != nil {
+		return nil, errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
 	}
+
+	log.Debug("ping kafka: ok", zap.String("driver", pipeline.Driver()), zap.String("pipeline", pipeline.Name()))
 
 	jb.pipeline.Store(&pipeline)
 
@@ -228,17 +226,15 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		return nil, errors.E(op, err)
 	}
 
-	if conf.Ping != nil {
-		pingCtx, pingCancel := context.WithTimeout(context.Background(), conf.Ping.Timeout)
-		defer pingCancel()
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), conf.Ping.Timeout)
+	defer pingCancel()
 
-		err := jb.kafkaClient.Ping(pingCtx)
-		if err != nil {
-			return nil, errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
-		}
-
-		log.Debug("ping kafka: ok", zap.String("driver", pipeline.Driver()), zap.String("pipeline", pipeline.Name()))
+	err = jb.kafkaClient.Ping(pingCtx)
+	if err != nil {
+		return nil, errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
 	}
+
+	log.Debug("ping kafka: ok", zap.String("driver", pipeline.Driver()), zap.String("pipeline", pipeline.Name()))
 
 	jb.pipeline.Store(&pipeline)
 
