@@ -13,7 +13,7 @@ import (
 	"github.com/twmb/franz-go/pkg/sasl/scram"
 )
 
-const defaultPingTimeout = time.Duration(time.Second * 10)
+const defaultPingTimeout = time.Second * 10
 
 func (c *config) InitDefault() ([]kgo.Opt, error) {
 	opts := make([]kgo.Opt, 0, 1)
