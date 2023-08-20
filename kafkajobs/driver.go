@@ -115,7 +115,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		return nil, errors.E(op, err)
 	}
 
-	err = ping(jb.kafkaClient, log, conf.Ping.Timeout, pipeline)
+	err = jb.ping(jb.kafkaClient, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		return nil, errors.E(op, err)
 	}
 
-	err = ping(jb.kafkaClient, log, conf.Ping.Timeout, pipeline)
+	err = jb.ping(jb.kafkaClient, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -492,18 +492,18 @@ func (d *Driver) requeueHandler() {
 	}
 }
 
-func ping(client *kgo.Client, log *zap.Logger, timeout time.Duration, pipe jobs.Pipeline) error {
+func (d *Driver) ping(client *kgo.Client, pipe jobs.Pipeline) error {
 	const op = errors.Op("kafka_ping")
 
-	pingCtx, pingCancel := context.WithTimeout(context.Background(), timeout)
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), d.cfg.Ping.Timeout)
 	defer pingCancel()
 
 	err := client.Ping(pingCtx)
 	if err != nil {
-		return errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
+		return errors.E(op, err, errors.Str("ping kafka was failed"))
 	}
 
-	log.Debug("ping kafka: ok", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()))
+	d.log.Debug("ping kafka: ok", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()))
 
 	return nil
 }
