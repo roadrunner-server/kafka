@@ -115,7 +115,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		return nil, errors.E(op, err)
 	}
 
-	err = pingKafka(jb.kafkaClient, log, conf.Ping.Timeout, pipeline)
+	err = ping(jb.kafkaClient, log, conf.Ping.Timeout, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		return nil, errors.E(op, err)
 	}
 
-	err = pingKafka(jb.kafkaClient, log, conf.Ping.Timeout, pipeline)
+	err = ping(jb.kafkaClient, log, conf.Ping.Timeout, pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -492,8 +492,8 @@ func (d *Driver) requeueHandler() {
 	}
 }
 
-func pingKafka(client *kgo.Client, log *zap.Logger, timeout time.Duration, pipe jobs.Pipeline) error {
-	const op = errors.Op("new_kafka_consumer")
+func ping(client *kgo.Client, log *zap.Logger, timeout time.Duration, pipe jobs.Pipeline) error {
+	const op = errors.Op("kafka_ping")
 
 	pingCtx, pingCancel := context.WithTimeout(context.Background(), timeout)
 	defer pingCancel()
