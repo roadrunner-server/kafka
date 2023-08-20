@@ -65,6 +65,7 @@ type config struct {
 	// global
 	Brokers []string `mapstructure:"brokers"`
 	SASL    *SASL    `mapstructure:"sasl"`
+	Ping    *Ping    `mapstructure:"ping"`
 
 	// pipeline
 	Priority         int           `mapstructure:"priority"`
@@ -89,6 +90,10 @@ type SASL struct {
 	SecretKey    string `mapstructure:"secret_key" json:"secret_key"`
 	SessionToken string `mapstructure:"session_token" json:"session_token"`
 	UserAgent    string `mapstructure:"user_agent" json:"user_agent"`
+}
+
+type Ping struct {
+	Timeout time.Duration `mapstructure:"timeout" json:"timeout"`
 }
 
 type GroupOptions struct {

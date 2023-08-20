@@ -236,6 +236,18 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 		return errors.E(op, errors.Errorf("no such pipeline registered: %s", pipe.Name()))
 	}
 
+	if d.cfg.Ping != nil {
+		pingCtx, pingCancel := context.WithTimeout(ctx, d.cfg.Ping.Timeout)
+		defer pingCancel()
+
+		err := d.kafkaClient.Ping(pingCtx)
+		if err != nil {
+			return errors.E(op, errors.Errorf("ping kafka was failed: %s", err))
+		}
+
+		d.log.Debug("ping kafka: ok", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()))
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
