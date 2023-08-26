@@ -122,10 +122,8 @@ func (d *Driver) listen() error {
 		fetches.EachRecord(func(r *kgo.Record) {
 			item := fromConsumer(r, d.requeueCh, d.recordsCh, &d.stopped)
 
-			ctx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers))
-			ctx, span := d.tracer.Tracer(tracerName).Start(ctx, "kafka_listener")
-
-			d.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
+			ctxT, span := d.tracer.Tracer(tracerName).Start(otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers)), "kafka_listener")
+			d.prop.Inject(ctxT, propagation.HeaderCarrier(item.headers))
 
 			d.pq.Insert(item)
 
