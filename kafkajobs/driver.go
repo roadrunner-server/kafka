@@ -7,11 +7,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/goccy/go-json"
 	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v4/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
@@ -106,7 +106,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		recordsCh:  make(chan *kgo.Record, 100),
 		requeueCh:  make(chan *Item, 10),
 		commandsCh: cmder,
-		delayed:    utils.Int64(0),
+		delayed:    toPtr(int64(0)),
 		cfg:        &conf,
 	}
 
@@ -212,7 +212,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		recordsCh:  make(chan *kgo.Record, 100),
 		requeueCh:  make(chan *Item, 10),
 		commandsCh: cmder,
-		delayed:    utils.Int64(0),
+		delayed:    toPtr(int64(0)),
 		cfg:        &conf,
 	}
 
@@ -414,7 +414,7 @@ func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 		if len(v) > 0 {
 			kh = append(kh, kgo.RecordHeader{
 				Key:   k,
-				Value: utils.AsBytes(v[0]),
+				Value: strToBytes(v[0]),
 			})
 		}
 	}
@@ -431,12 +431,12 @@ func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 	// RRJob
 	kh = append(kh, kgo.RecordHeader{
 		Key:   jobs.RRJob,
-		Value: utils.AsBytes(msg.Job),
+		Value: strToBytes(msg.Job),
 	})
 	// RRPipeline
 	kh = append(kh, kgo.RecordHeader{
 		Key:   jobs.RRPipeline,
-		Value: utils.AsBytes(msg.Options.Pipeline),
+		Value: strToBytes(msg.Options.Pipeline),
 	})
 	// RRPriority
 	rrpri := make([]byte, 8)
@@ -506,4 +506,16 @@ func (d *Driver) ping(client *kgo.Client, pipe jobs.Pipeline) error {
 	d.log.Debug("ping kafka: ok", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()))
 
 	return nil
+}
+
+func strToBytes(data string) []byte {
+	if data == "" {
+		return nil
+	}
+
+	return unsafe.Slice(unsafe.StringData(data), len(data))
+}
+
+func toPtr[T any](v T) *T {
+	return &v
 }
