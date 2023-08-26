@@ -5,9 +5,9 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/aws/aws-sdk-go v1.44.326
+	github.com/aws/aws-sdk-go v1.44.332
 	github.com/goccy/go-json v0.10.2
-	github.com/roadrunner-server/api/v4 v4.6.2
+	github.com/roadrunner-server/api/v4 v4.7.0
 	github.com/roadrunner-server/endure/v2 v2.4.2
 	github.com/roadrunner-server/errors v1.3.0
 	github.com/roadrunner-server/sdk/v4 v4.3.2
