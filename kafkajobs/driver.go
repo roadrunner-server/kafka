@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/goccy/go-json"
-	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
 	"github.com/twmb/franz-go/pkg/kgo"

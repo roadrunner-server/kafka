@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.opentelemetry.io/otel"
@@ -68,7 +68,8 @@ func (d *Driver) listen() error {
 				continue
 
 			case errors.As(errs[i].Err, &regErr):
-				errP := errs[i].Err.(*kerr.Error) //nolint:errorlint
+				var errP *kerr.Error
+				errors.As(errs[i].Err, &errP)
 				// https://kafka.apache.org/protocol.html#protocol_error_codes
 				switch errP.Retriable {
 				case true:
@@ -180,7 +181,7 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, st
 	item := &Item{
 		Job:     rrjob,
 		Ident:   string(msg.Key),
-		Payload: string(msg.Value),
+		Payload: msg.Value,
 		headers: headers,
 
 		stopped:   stopped,

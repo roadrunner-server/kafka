@@ -4,9 +4,8 @@ import (
 	"sync/atomic"
 
 	"github.com/goccy/go-json"
-	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v4/utils"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -22,7 +21,7 @@ type Item struct {
 	// Ident is unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
 	// Payload is string data (usually JSON) passed to Job broker.
-	Payload string `json:"payload"`
+	Payload []byte `json:"payload"`
 	// Headers with key-values pairs
 	headers map[string][]string
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
@@ -72,7 +71,7 @@ func (i *Item) Headers() map[string][]string {
 
 // Body packs job payload into binary payload.
 func (i *Item) Body() []byte {
-	return utils.AsBytes(i.Payload)
+	return i.Payload
 }
 
 // Context packs job context (job, id) into binary payload.

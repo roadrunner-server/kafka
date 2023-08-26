@@ -1,7 +1,7 @@
 package kafkajobs
 
 import (
-	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 )
 
 type cmd struct {
