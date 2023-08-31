@@ -500,7 +500,7 @@ func (d *Driver) ping(client *kgo.Client, pipe jobs.Pipeline) error {
 
 	err := client.Ping(pingCtx)
 	if err != nil {
-		return errors.E(op, err, errors.Str("ping kafka was failed"))
+		return errors.E(op, err)
 	}
 
 	d.log.Debug("ping kafka: ok", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()))
