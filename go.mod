@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/aws/aws-sdk-go v1.45.2
+	github.com/aws/aws-sdk-go v1.45.6
 	github.com/goccy/go-json v0.10.2
 	github.com/roadrunner-server/api/v4 v4.7.1
 	github.com/roadrunner-server/endure/v2 v2.4.2
@@ -27,6 +27,6 @@ require (
 	github.com/twmb/franz-go/pkg/kmsg v1.6.1 // indirect
 	go.opentelemetry.io/otel/metric v1.17.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.12.0 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 )
