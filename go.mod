@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/aws/aws-sdk-go v1.45.9
+	github.com/aws/aws-sdk-go v1.45.10
 	github.com/goccy/go-json v0.10.2
 	github.com/roadrunner-server/api/v4 v4.8.0
 	github.com/roadrunner-server/endure/v2 v2.4.2
@@ -15,7 +15,7 @@ require (
 	go.opentelemetry.io/otel v1.18.0
 	go.opentelemetry.io/otel/sdk v1.18.0
 	go.opentelemetry.io/otel/trace v1.18.0
-	go.uber.org/zap v1.25.0
+	go.uber.org/zap v1.26.0
 )
 
 require (
