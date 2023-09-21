@@ -10,7 +10,7 @@ require (
 	github.com/roadrunner-server/api/v4 v4.8.0
 	github.com/roadrunner-server/endure/v2 v2.4.2
 	github.com/roadrunner-server/errors v1.3.0
-	github.com/twmb/franz-go v1.14.4
+	github.com/twmb/franz-go v1.15.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.19.0
 	go.opentelemetry.io/otel v1.18.0
 	go.opentelemetry.io/otel/sdk v1.18.0
