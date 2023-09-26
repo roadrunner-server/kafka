@@ -1,0 +1,50 @@
+version: '3'
+
+rpc:
+  listen: tcp://127.0.0.1:6002
+
+server:
+  command: "php php_test_files/jobs/jobs_ok_pq.php"
+  relay: "pipes"
+  relay_timeout: "20s"
+
+logs:
+  level: debug
+  encoding: console
+  mode: development
+
+kafka:
+  brokers: ["127.0.0.1:9092"]
+
+jobs:
+  num_pollers: 2
+  pipeline_size: 100000
+  timeout: 100
+  pool:
+    num_workers: 2
+    allocate_timeout: 60s
+    destroy_timeout: 60s
+
+  pipelines:
+    test-1-pq:
+      driver: kafka
+      config:
+        priority: 1
+
+        auto_create_topics_enable: true
+
+        group_options:
+          group_id: bar-pq
+          block_rebalance_on_poll: true
+
+        producer_options:
+          required_acks: LeaderAck
+          compression_codec: snappy
+          disable_idempotent: true
+
+        consumer_options:
+          topics: [ "foo-pq" ]
+          consumer_offset:
+            type: AtStart
+
+  consume: [ "test-1-pq" ]
