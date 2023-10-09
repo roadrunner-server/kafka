@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.45.24
 	github.com/goccy/go-json v0.10.2
 	github.com/roadrunner-server/api/v4 v4.9.0
-	github.com/roadrunner-server/endure/v2 v2.4.2
+	github.com/roadrunner-server/endure/v2 v2.4.3
 	github.com/roadrunner-server/errors v1.3.0
 	github.com/twmb/franz-go v1.15.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.20.0
