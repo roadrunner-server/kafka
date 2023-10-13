@@ -10,17 +10,17 @@ require (
 	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.3.1
 	github.com/roadrunner-server/api/v4 v4.9.0
-	github.com/roadrunner-server/config/v4 v4.4.6
+	github.com/roadrunner-server/config/v4 v4.4.7
 	github.com/roadrunner-server/endure/v2 v2.4.3
 	github.com/roadrunner-server/goridge/v3 v3.8.1
-	github.com/roadrunner-server/informer/v4 v4.3.2
-	github.com/roadrunner-server/jobs/v4 v4.7.3
-	github.com/roadrunner-server/kafka/v4 v4.4.6
-	github.com/roadrunner-server/logger/v4 v4.2.4
-	github.com/roadrunner-server/otel/v4 v4.3.2
-	github.com/roadrunner-server/resetter/v4 v4.0.11
-	github.com/roadrunner-server/rpc/v4 v4.2.5
-	github.com/roadrunner-server/server/v4 v4.4.2
+	github.com/roadrunner-server/informer/v4 v4.3.3
+	github.com/roadrunner-server/jobs/v4 v4.7.4
+	github.com/roadrunner-server/kafka/v4 v4.4.7
+	github.com/roadrunner-server/logger/v4 v4.2.5
+	github.com/roadrunner-server/otel/v4 v4.3.3
+	github.com/roadrunner-server/resetter/v4 v4.0.12
+	github.com/roadrunner-server/rpc/v4 v4.2.6
+	github.com/roadrunner-server/server/v4 v4.4.3
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 )
@@ -29,7 +29,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/aws/aws-sdk-go v1.45.24 // indirect
+	github.com/aws/aws-sdk-go v1.45.25 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -122,9 +122,9 @@ require (
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.14.0 // indirect
-	google.golang.org/genproto v0.0.0-20231009173412-8bfb1ae86b6c // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20231009173412-8bfb1ae86b6c // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231009173412-8bfb1ae86b6c // indirect
+	google.golang.org/genproto v0.0.0-20231012201019-e917dd12ba7a // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20231012201019-e917dd12ba7a // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231012201019-e917dd12ba7a // indirect
 	google.golang.org/grpc v1.58.3 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
