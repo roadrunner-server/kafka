@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/aws/aws-sdk-go v1.45.28
+	github.com/aws/aws-sdk-go v1.46.0
 	github.com/goccy/go-json v0.10.2
 	github.com/roadrunner-server/api/v4 v4.9.0
 	github.com/roadrunner-server/endure/v2 v2.4.3
@@ -22,6 +22,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.17.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
