@@ -75,7 +75,7 @@ require (
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/roadrunner-server/errors v1.3.0 // indirect
-	github.com/roadrunner-server/sdk/v4 v4.5.2 // indirect
+	github.com/roadrunner-server/sdk/v4 v4.5.3 // indirect
 	github.com/roadrunner-server/tcplisten v1.4.0 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
