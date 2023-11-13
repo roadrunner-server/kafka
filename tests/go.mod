@@ -20,7 +20,7 @@ require (
 	github.com/roadrunner-server/otel/v4 v4.3.6
 	github.com/roadrunner-server/resetter/v4 v4.0.15
 	github.com/roadrunner-server/rpc/v4 v4.2.9
-	github.com/roadrunner-server/server/v4 v4.5.0
+	github.com/roadrunner-server/server/v4 v4.5.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 )
@@ -29,7 +29,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/aws/aws-sdk-go v1.47.8 // indirect
+	github.com/aws/aws-sdk-go v1.47.9 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -114,7 +114,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.15.0 // indirect
-	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678 // indirect
+	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
