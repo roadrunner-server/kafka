@@ -10,17 +10,17 @@ require (
 	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.5.0
 	github.com/roadrunner-server/api/v4 v4.10.0
-	github.com/roadrunner-server/config/v4 v4.6.4
+	github.com/roadrunner-server/config/v4 v4.6.5
 	github.com/roadrunner-server/endure/v2 v2.4.3
 	github.com/roadrunner-server/goridge/v3 v3.8.1
-	github.com/roadrunner-server/informer/v4 v4.3.11
-	github.com/roadrunner-server/jobs/v4 v4.7.10
-	github.com/roadrunner-server/kafka/v4 v4.4.13
-	github.com/roadrunner-server/logger/v4 v4.2.11
-	github.com/roadrunner-server/otel/v4 v4.3.9
-	github.com/roadrunner-server/resetter/v4 v4.0.18
-	github.com/roadrunner-server/rpc/v4 v4.2.12
-	github.com/roadrunner-server/server/v4 v4.5.4
+	github.com/roadrunner-server/informer/v4 v4.3.12
+	github.com/roadrunner-server/jobs/v4 v4.7.11
+	github.com/roadrunner-server/kafka/v4 v4.4.14
+	github.com/roadrunner-server/logger/v4 v4.2.12
+	github.com/roadrunner-server/otel/v4 v4.3.10
+	github.com/roadrunner-server/resetter/v4 v4.0.19
+	github.com/roadrunner-server/rpc/v4 v4.2.13
+	github.com/roadrunner-server/server/v4 v4.5.5
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 )
@@ -29,7 +29,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/aws/aws-sdk-go v1.49.10 // indirect
+	github.com/aws/aws-sdk-go v1.49.13 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -71,7 +71,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.19 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.17.0 // indirect
+	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
@@ -122,9 +122,9 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
-	google.golang.org/genproto v0.0.0-20231212172506-995d672761c0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20231212172506-995d672761c0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231212172506-995d672761c0 // indirect
+	google.golang.org/genproto v0.0.0-20240102182953-50ed04b92917 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240102182953-50ed04b92917 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917 // indirect
 	google.golang.org/grpc v1.60.1 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
