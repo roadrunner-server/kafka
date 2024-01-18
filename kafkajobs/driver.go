@@ -128,7 +128,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	return jb, nil
 }
 
-// FromPipeline initializes pipeline on-the-fly
+// FromPipeline initializes a pipeline on-the-fly
 func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
