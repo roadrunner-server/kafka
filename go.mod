@@ -5,13 +5,13 @@ go 1.21
 toolchain go1.21.5
 
 require (
-	github.com/aws/aws-sdk-go v1.49.23
+	github.com/aws/aws-sdk-go v1.49.24
 	github.com/goccy/go-json v0.10.2
 	github.com/roadrunner-server/api/v4 v4.10.0
 	github.com/roadrunner-server/endure/v2 v2.4.3
 	github.com/roadrunner-server/errors v1.3.0
 	github.com/twmb/franz-go v1.15.4
-	go.opentelemetry.io/contrib/propagators/jaeger v1.21.1
+	go.opentelemetry.io/contrib/propagators/jaeger v1.22.0
 	go.opentelemetry.io/otel v1.22.0
 	go.opentelemetry.io/otel/sdk v1.22.0
 	go.opentelemetry.io/otel/trace v1.22.0
