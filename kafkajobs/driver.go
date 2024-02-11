@@ -257,7 +257,7 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	}()
 
 	atomic.StoreUint32(&d.listeners, 1)
-	d.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 	return nil
 }
 
@@ -322,7 +322,7 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 	// remove active listener
 	atomic.AddUint32(&d.listeners, ^uint32(0))
 
-	d.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 
 	return nil
 }
@@ -362,7 +362,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 	// increase number of listeners
 	atomic.StoreUint32(&d.listeners, 1)
 
-	d.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 
 	return nil
 }
@@ -396,7 +396,7 @@ func (d *Driver) Stop(ctx context.Context) error {
 	// remove all pending JOBS associated with the pipeline
 	_ = d.pq.Remove(pipe.Name())
 
-	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 
 	return nil
 }
