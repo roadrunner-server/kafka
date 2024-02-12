@@ -11,7 +11,11 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# make commands for local env (must be ingored because Autobuild job check it)
+Makefile
+
 # Dependency directories (remove the comment below to include it)
+tests/test-certs
 vendor/
 .idea
 .DS_Store
