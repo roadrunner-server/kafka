@@ -4,8 +4,8 @@ github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1/go.mod h1:xomTg6
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/aws/aws-sdk-go v1.50.16 h1:/KuHK+Sadp9BKXWWtMhPtBdj+PLIFCnQZxQnsuLhxKc=
-github.com/aws/aws-sdk-go v1.50.16/go.mod h1:LF8svs817+Nz+DmiMQKTO3ubZ/6IaTpq3TjupRn3Eqk=
+github.com/aws/aws-sdk-go v1.50.18 h1:h+FQjxp5sSDqFKScTUXHVahBlqduKtiR0qM18evcvag=
+github.com/aws/aws-sdk-go v1.50.18/go.mod h1:LF8svs817+Nz+DmiMQKTO3ubZ/6IaTpq3TjupRn3Eqk=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
@@ -157,8 +157,8 @@ github.com/roadrunner-server/jobs/v4 v4.7.13 h1:8bzZzMEykSnFhzkCWuQ/Lq1Q2LR1F9+P
 github.com/roadrunner-server/jobs/v4 v4.7.13/go.mod h1:32iG5PZaDPOAKX6WbOwPm4rAHzCYC3s3DIPy374MjFc=
 github.com/roadrunner-server/logger/v4 v4.2.14 h1:BVJqmdsI+tIkspSyTd5MsqvHX2w2oxGYjRTSh5kDL1w=
 github.com/roadrunner-server/logger/v4 v4.2.14/go.mod h1:z8ainOGoCNey7vEAEfiVAMYmOmfAUoN3z13Hc0co1Ho=
-github.com/roadrunner-server/otel/v4 v4.3.12 h1:lev5ItbV8totCJOYh3QFlbeMO75rC2bt4eTgCjXTgy4=
-github.com/roadrunner-server/otel/v4 v4.3.12/go.mod h1:UKLW0z4eCk4AIgaCpWOaK8OE34uf650cDghuDscmzxc=
+github.com/roadrunner-server/otel/v4 v4.3.13 h1:CCavPu7RKdt01fVDpgYKd6ACU1liByuZ3fIBrJJxsBM=
+github.com/roadrunner-server/otel/v4 v4.3.13/go.mod h1:a05XI/y+dzIuXmZXsvHXDBFF6rVhPfH+lciTv+J5FAM=
 github.com/roadrunner-server/resetter/v4 v4.0.21 h1:C3BF7YLTcZfqTKUZUudaTQ/IUfinz4VmshTEhywipx0=
 github.com/roadrunner-server/resetter/v4 v4.0.21/go.mod h1:yn/1UXSceuBQ+R+loXSKqmKtx6htcVRza2Ifni0i3FA=
 github.com/roadrunner-server/rpc/v4 v4.2.15 h1:cGKsF2tYqe8k+oRM3aWsbddpihY1vhjd9n6/w6AqEqA=
@@ -359,8 +359,8 @@ google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyac
 google.golang.org/grpc v1.25.1/go.mod h1:c3i+UQWmh7LiEpx4sFZnkU36qjEYZ0imhYfXVyQciAY=
 google.golang.org/grpc v1.27.0/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
 google.golang.org/grpc v1.29.1/go.mod h1:itym6AZVZYACWQqET3MqgPpjcuV5QH3BxFS3IjizoKk=
-google.golang.org/grpc v1.61.0 h1:TOvOcuXn30kRao+gfcvsebNEa5iZIiLkisYEkf7R7o0=
-google.golang.org/grpc v1.61.0/go.mod h1:VUbo7IFqmF1QtCAstipjG0GIoq49KvMe9+h1jFLBNJs=
+google.golang.org/grpc v1.61.1 h1:kLAiWrZs7YeDM6MumDe7m3y4aM6wacLzM1Y/wiLP9XY=
+google.golang.org/grpc v1.61.1/go.mod h1:VUbo7IFqmF1QtCAstipjG0GIoq49KvMe9+h1jFLBNJs=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.32.0 h1:pPC6BG5ex8PDFnkbrGU3EixyhKcQ2aDuBS36lqK/C7I=

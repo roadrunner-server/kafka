@@ -17,7 +17,7 @@ require (
 	github.com/roadrunner-server/jobs/v4 v4.7.13
 	github.com/roadrunner-server/kafka/v4 v4.4.16
 	github.com/roadrunner-server/logger/v4 v4.2.14
-	github.com/roadrunner-server/otel/v4 v4.3.12
+	github.com/roadrunner-server/otel/v4 v4.3.13
 	github.com/roadrunner-server/resetter/v4 v4.0.21
 	github.com/roadrunner-server/rpc/v4 v4.2.15
 	github.com/roadrunner-server/server/v4 v4.5.7
@@ -29,7 +29,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/aws/aws-sdk-go v1.50.16 // indirect
+	github.com/aws/aws-sdk-go v1.50.18 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -120,7 +120,7 @@ require (
 	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240213162025-012b6fc9bca9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240213162025-012b6fc9bca9 // indirect
-	google.golang.org/grpc v1.61.0 // indirect
+	google.golang.org/grpc v1.61.1 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
