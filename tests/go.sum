@@ -137,8 +137,8 @@ github.com/prometheus/client_golang v1.18.0/go.mod h1:T+GXkCk5wSJyOqMIzVgvvjFDlk
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
 github.com/prometheus/client_model v0.5.0 h1:VQw1hfvPvk3Uv6Qf29VrPF32JB6rtbgI6cYPYQjL0Qw=
 github.com/prometheus/client_model v0.5.0/go.mod h1:dTiFglRmd66nLR9Pv9f0mZi7B7fk5Pm3gvsjB5tr+kI=
-github.com/prometheus/common v0.46.0 h1:doXzt5ybi1HBKpsZOL0sSkaNHJJqkyfEWZGGqqScV0Y=
-github.com/prometheus/common v0.46.0/go.mod h1:Tp0qkxpb9Jsg54QMe+EAmqXkSV7Evdy1BTn+g2pa/hQ=
+github.com/prometheus/common v0.47.0 h1:p5Cz0FNHo7SnWOmWmoRozVcjEp0bIVU8cV7OShpjL1k=
+github.com/prometheus/common v0.47.0/go.mod h1:0/KsvlIEfPQCQ5I2iNSAWKPZziNCvRs5EC6ILDTlAPc=
 github.com/prometheus/procfs v0.12.0 h1:jluTpSng7V9hY0O2R9DzzJHYb2xULk9VTR1V1R/k6Bo=
 github.com/prometheus/procfs v0.12.0/go.mod h1:pcuDEFsWDnvcgNzo4EEweacyhjeA9Zk3cnaOZAZEfOo=
 github.com/roadrunner-server/api/v4 v4.10.0 h1:tF6vmA6MaQyOL/GQQc+nyj356oX3UoQBd+SXNtsu+bU=
@@ -159,8 +159,8 @@ github.com/roadrunner-server/logger/v4 v4.2.14 h1:BVJqmdsI+tIkspSyTd5MsqvHX2w2ox
 github.com/roadrunner-server/logger/v4 v4.2.14/go.mod h1:z8ainOGoCNey7vEAEfiVAMYmOmfAUoN3z13Hc0co1Ho=
 github.com/roadrunner-server/otel/v4 v4.3.13 h1:CCavPu7RKdt01fVDpgYKd6ACU1liByuZ3fIBrJJxsBM=
 github.com/roadrunner-server/otel/v4 v4.3.13/go.mod h1:a05XI/y+dzIuXmZXsvHXDBFF6rVhPfH+lciTv+J5FAM=
-github.com/roadrunner-server/resetter/v4 v4.0.21 h1:C3BF7YLTcZfqTKUZUudaTQ/IUfinz4VmshTEhywipx0=
-github.com/roadrunner-server/resetter/v4 v4.0.21/go.mod h1:yn/1UXSceuBQ+R+loXSKqmKtx6htcVRza2Ifni0i3FA=
+github.com/roadrunner-server/resetter/v4 v4.1.0 h1:xQ1zOpkwqTgzzp6FtS8x3HhNcceOpSmhtqTk2i/GWQw=
+github.com/roadrunner-server/resetter/v4 v4.1.0/go.mod h1:uJwGNu+Ktodo3JGAOEiz+EmvgB+vorTbR2HDL7bWR3M=
 github.com/roadrunner-server/rpc/v4 v4.2.15 h1:cGKsF2tYqe8k+oRM3aWsbddpihY1vhjd9n6/w6AqEqA=
 github.com/roadrunner-server/rpc/v4 v4.2.15/go.mod h1:Hxduua91f9pAkMzoJzG+a5Ep3azHeBsp2I842A6X+mQ=
 github.com/roadrunner-server/sdk/v4 v4.6.0 h1:dXMN7V8+VKjQAZamhKBizPGSqrpfAfVG6r4OCF66hNY=
