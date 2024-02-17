@@ -1,26 +1,24 @@
 module tests
 
-go 1.22
-
-toolchain go1.22.0
+go 1.22.0
 
 require (
 	github.com/docker/docker v25.0.3+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.6.0
-	github.com/roadrunner-server/api/v4 v4.10.0
-	github.com/roadrunner-server/config/v4 v4.6.7
+	github.com/roadrunner-server/api/v4 v4.11.0
+	github.com/roadrunner-server/config/v4 v4.6.8
 	github.com/roadrunner-server/endure/v2 v2.4.3
 	github.com/roadrunner-server/goridge/v3 v3.8.1
-	github.com/roadrunner-server/informer/v4 v4.3.14
-	github.com/roadrunner-server/jobs/v4 v4.7.13
-	github.com/roadrunner-server/kafka/v4 v4.4.16
-	github.com/roadrunner-server/logger/v4 v4.2.14
-	github.com/roadrunner-server/otel/v4 v4.3.13
-	github.com/roadrunner-server/resetter/v4 v4.1.0
-	github.com/roadrunner-server/rpc/v4 v4.2.15
-	github.com/roadrunner-server/server/v4 v4.5.7
+	github.com/roadrunner-server/informer/v4 v4.3.15
+	github.com/roadrunner-server/jobs/v4 v4.7.14
+	github.com/roadrunner-server/kafka/v4 v4.4.17
+	github.com/roadrunner-server/logger/v4 v4.2.15
+	github.com/roadrunner-server/otel/v4 v4.3.14
+	github.com/roadrunner-server/resetter/v4 v4.1.1
+	github.com/roadrunner-server/rpc/v4 v4.2.16
+	github.com/roadrunner-server/server/v4 v4.5.8
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 )
@@ -29,7 +27,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/aws/aws-sdk-go v1.50.18 // indirect
+	github.com/aws/aws-sdk-go v1.50.20 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -60,7 +58,7 @@ require (
 	github.com/moby/term v0.5.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.2 // indirect
+	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
@@ -68,7 +66,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
-	github.com/prometheus/client_model v0.5.0 // indirect
+	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.47.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/roadrunner-server/errors v1.4.0 // indirect
