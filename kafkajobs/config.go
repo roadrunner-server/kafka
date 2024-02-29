@@ -33,7 +33,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 	if c.SASL != nil {
 		switch c.SASL.Type {
 		case scramSha256:
-			kgo.SASL(scram.Sha256(func(context.Context) (scram.Auth, error) {
+			opts = append(opts, kgo.SASL(scram.Sha256(func(context.Context) (scram.Auth, error) {
 				return scram.Auth{
 					Zid:     c.SASL.Zid,
 					User:    c.SASL.Username,
@@ -41,9 +41,9 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 					Nonce:   c.SASL.Nonce,
 					IsToken: c.SASL.IsToken,
 				}, nil
-			}))
+			})))
 		case scramSha512:
-			kgo.SASL(scram.Sha512(func(context.Context) (scram.Auth, error) {
+			opts = append(opts, kgo.SASL(scram.Sha512(func(context.Context) (scram.Auth, error) {
 				return scram.Auth{
 					Zid:     c.SASL.Zid,
 					User:    c.SASL.Username,
@@ -51,22 +51,22 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 					Nonce:   c.SASL.Nonce,
 					IsToken: c.SASL.IsToken,
 				}, nil
-			}))
+			})))
 		case basic:
-			kgo.SASL(plain.Plain(func(context.Context) (plain.Auth, error) {
+			opts = append(opts, kgo.SASL(plain.Plain(func(context.Context) (plain.Auth, error) {
 				return plain.Auth{
 					User: c.SASL.Username,
 					Zid:  c.SASL.Zid,
 					Pass: c.SASL.Password,
 				}, nil
-			}))
+			})))
 		case awsMskIam:
 			sess, err := session.NewSession()
 			if err != nil {
 				return nil, errors.Errorf("unable to initialize aws session: %v", err)
 			}
 
-			kgo.SASL(aws.ManagedStreamingIAM(func(ctx context.Context) (aws.Auth, error) {
+			opts = append(opts, kgo.SASL(aws.ManagedStreamingIAM(func(ctx context.Context) (aws.Auth, error) {
 				val, err := sess.Config.Credentials.GetWithContext(ctx)
 				if err == nil {
 					return aws.Auth{
@@ -83,7 +83,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 					SessionToken: c.SASL.SessionToken,
 					UserAgent:    c.SASL.UserAgent,
 				}, nil
-			}))
+			})))
 		default:
 			return nil, errors.Errorf("unknown SASL authorization mechanism: %s", c.SASL.Type)
 		}
