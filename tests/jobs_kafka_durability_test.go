@@ -1,4 +1,4 @@
-package durability
+package tests
 
 import (
 	"context"
@@ -78,7 +78,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 		panic(err)
 	}
 
-	err = cli.ContainerStart(ctx, zkc.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, zkc.ID, container.StartOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 		return nil, err
 	}
 
-	err = cli.ContainerStart(ctx, k.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, k.ID, container.StartOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 					panic(err2)
 				}
 			case <-start:
-				err2 := cli.ContainerStart(context.Background(), k.ID, types.ContainerStartOptions{})
+				err2 := cli.ContainerStart(context.Background(), k.ID, container.StartOptions{})
 				if err2 != nil {
 					panic(err2)
 				}
@@ -165,7 +165,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 					panic(err2)
 				}
 
-				err2 = cli.ContainerRemove(bg, k.ID, types.ContainerRemoveOptions{
+				err2 = cli.ContainerRemove(bg, k.ID, container.RemoveOptions{
 					RemoveVolumes: true,
 					Force:         true,
 				})
@@ -173,7 +173,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 					panic(err2)
 				}
 
-				err2 = cli.ContainerRemove(bg, zkc.ID, types.ContainerRemoveOptions{
+				err2 = cli.ContainerRemove(bg, zkc.ID, container.RemoveOptions{
 					RemoveVolumes: true,
 					Force:         true,
 				})
