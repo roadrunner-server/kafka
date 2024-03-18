@@ -65,7 +65,23 @@ jobs:
         run: |
           cd tests
           mkdir ./coverage-ci
-
+          
+          sudo apt update
+          sudo apt install -y libnss3-tools default-jdk
+          curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
+          chmod +x mkcert-v*-linux-amd64
+          sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
+          mkcert -install
+          mkcert localhost 127.0.0.1 ::1
+          mkcert -client localhost 127.0.0.1 ::1 
+          mkdir test-certs
+          cp -r localhost+2-client-key.pem localhost+2-client.pem localhost+2-key.pem localhost+2.pem test-certs/
+          cp -r $(mkcert -CAROOT)/rootCA.pem test-certs/
+          openssl pkcs12 -export -in test-certs/localhost+2.pem -inkey test-certs/localhost+2-key.pem -chain -CAfile test-certs/rootCA.pem -out test-certs/kafka.keystore.p12 -name localhost -password pass:confluent
+          keytool -importkeystore -deststorepass confluent -destkeystore test-certs/kafka.keystore.pkcs12 -srckeystore test-certs/kafka.keystore.p12 -deststoretype PKCS12 -srcstoretype PKCS12 -noprompt -srcstorepass confluent
+          keytool -keystore test-certs/kafka.truststore.pkcs12 -alias CARoot -import -file test-certs/rootCA.pem -storepass confluent -noprompt -storetype PKCS12
+          echo "confluent" > test-certs/kafka_keystore_creds
+          
           docker compose -f env/docker-compose-kafka.yaml up -d
           sleep 40
           

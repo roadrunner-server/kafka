@@ -8,7 +8,7 @@ server:
   relay: pipes
 
 kafka:
-  brokers: ["127.0.0.1:9093"] # Here invalid broker
+  brokers: ["127.0.0.1:9094"] # Here invalid broker
   ping:
     timeout: "2s"
 

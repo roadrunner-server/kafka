@@ -1,7 +1,7 @@
 version: '3'
 
 rpc:
-  listen: tcp://127.0.0.1:6001
+  listen: tcp://127.0.0.1:6003
 
 server:
   command: "php php_test_files/jobs/jobs_ok.php"
@@ -14,7 +14,11 @@ logs:
   mode: development
 
 kafka:
-  brokers: ["127.0.0.1:9092"]
+  brokers: ["127.0.0.1:9093"]
+  tls:
+    root_ca: "test-certs/rootCA.pem"
+    key: "test-certs/localhost+2-client-key.pem"
+    cert: "test-certs/localhost+2-client.pem"
 
 jobs:
   num_pollers: 10
@@ -26,17 +30,11 @@ jobs:
     destroy_timeout: 60s
 
   pipelines:
-    test-1:
+    test-1-tls-root-ca:
       driver: kafka
       config:
         priority: 1
-
         auto_create_topics_enable: true
-
-#        group_options:
-#          group_id: bar
-#          block_rebalance_on_poll: true
-
         producer_options:
           max_message_bytes: 1000
           required_acks: LeaderAck
@@ -44,14 +42,8 @@ jobs:
           disable_idempotent: true
 
         consumer_options:
-          #          consume_partitions:
-          #            foo:
-          #              0:
-          #                type: AtEnd
-          #                value: 1
-
-          topics: [ "test-1" ]
+          topics: [ "test-1-tls-root-ca" ]
           consumer_offset:
             type: AtStart
 
-  consume: [ "test-1" ]
+  consume: [ "test-1-tls-root-ca" ]

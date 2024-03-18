@@ -2,6 +2,10 @@ package kafkajobs
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"net"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -14,6 +18,7 @@ import (
 )
 
 const defaultPingTimeout = time.Second * 10
+const defaultTLSTimeout = time.Second * 10
 
 func (c *config) InitDefault() ([]kgo.Opt, error) {
 	opts := make([]kgo.Opt, 0, 1)
@@ -29,6 +34,25 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 	opts = append(opts, kgo.SeedBrokers(c.Brokers...))
 	opts = append(opts, kgo.MaxVersions(kversion.Stable()))
 	opts = append(opts, kgo.RetryTimeout(time.Minute*5))
+
+	if c.TLS != nil {
+		netDialer := &net.Dialer{Timeout: defaultTLSTimeout}
+
+		if c.TLS.Timeout != 0 {
+			netDialer.Timeout = c.TLS.Timeout * time.Second
+		}
+
+		tlsDialerConfig, err := c.tlsConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		tlsDialer := &tls.Dialer{
+			NetDialer: netDialer,
+			Config:    tlsDialerConfig,
+		}
+		opts = append(opts, kgo.Dialer(tlsDialer.DialContext))
+	}
 
 	if c.SASL != nil {
 		switch c.SASL.Type {
@@ -237,4 +261,61 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 	}
 
 	return opts, nil
+}
+
+func (c *config) tlsConfig() (*tls.Config, error) {
+	tlsDialerConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+
+	// RootCA is optional, but if provided - check it
+	if c.TLS.RootCA != "" {
+		// auth type used only for the CA
+		switch c.TLS.AuthType {
+		case NoClientCert:
+			tlsDialerConfig.ClientAuth = tls.NoClientCert
+		case RequestClientCert:
+			tlsDialerConfig.ClientAuth = tls.RequestClientCert
+		case RequireAnyClientCert:
+			tlsDialerConfig.ClientAuth = tls.RequireAnyClientCert
+		case VerifyClientCertIfGiven:
+			tlsDialerConfig.ClientAuth = tls.VerifyClientCertIfGiven
+		case RequireAndVerifyClientCert:
+			tlsDialerConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		default:
+			tlsDialerConfig.ClientAuth = tls.NoClientCert
+		}
+
+		cert, err := tls.LoadX509KeyPair(c.TLS.Cert, c.TLS.Key)
+		if err != nil {
+			return nil, err
+		}
+
+		certPool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, err
+		}
+		if certPool == nil {
+			certPool = x509.NewCertPool()
+		}
+
+		rca, err := os.ReadFile(c.TLS.RootCA)
+		if err != nil {
+			return nil, err
+		}
+
+		if ok := certPool.AppendCertsFromPEM(rca); !ok {
+			return nil, errors.Errorf("could not append Certs from PEM")
+		}
+
+		tlsDialerConfig.Certificates = []tls.Certificate{cert}
+		tlsDialerConfig.ClientCAs = certPool
+	} else if c.TLS.Key != "" && c.TLS.Cert != "" {
+		cert, err := tls.LoadX509KeyPair(c.TLS.Cert, c.TLS.Key)
+		if err != nil {
+			return nil, err
+		}
+
+		tlsDialerConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	return tlsDialerConfig, nil
 }

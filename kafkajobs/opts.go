@@ -64,6 +64,7 @@ const (
 type config struct {
 	// global
 	Brokers []string `mapstructure:"brokers"`
+	TLS     *TLS     `mapstructure:"tls"`
 	SASL    *SASL    `mapstructure:"sasl"`
 	Ping    *Ping    `mapstructure:"ping"`
 
@@ -118,4 +119,22 @@ type ConsumerOpts struct {
 	MinFetchMessageSize int32                        `mapstructure:"min_fetch_message_size" json:"min_fetch_message_size"`
 	ConsumePartitions   map[string]map[int32]*Offset `mapstructure:"consume_partitions" json:"consume_partitions"`
 	ConsumerOffset      *Offset                      `mapstructure:"consumer_offset" json:"consumer_offset"`
+}
+
+type ClientAuthType string
+
+const (
+	NoClientCert               ClientAuthType = "no_client_cert"
+	RequestClientCert          ClientAuthType = "request_client_cert"
+	RequireAnyClientCert       ClientAuthType = "require_any_client_cert"
+	VerifyClientCertIfGiven    ClientAuthType = "verify_client_cert_if_given"
+	RequireAndVerifyClientCert ClientAuthType = "require_and_verify_client_cert"
+)
+
+type TLS struct {
+	Timeout  time.Duration  `mapstructure:"timeout" json:"timeout"`
+	Key      string         `mapstructure:"key"`
+	Cert     string         `mapstructure:"cert"`
+	RootCA   string         `mapstructure:"root_ca"`
+	AuthType ClientAuthType `mapstructure:"client_auth_type"`
 }
