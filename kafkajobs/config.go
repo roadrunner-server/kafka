@@ -35,11 +35,39 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 	opts = append(opts, kgo.MaxVersions(kversion.Stable()))
 	opts = append(opts, kgo.RetryTimeout(time.Minute*5))
 
-	if c.TLS != nil {
+	if c.enableTLS() {
 		netDialer := &net.Dialer{Timeout: defaultTLSTimeout}
 
 		if c.TLS.Timeout != 0 {
 			netDialer.Timeout = c.TLS.Timeout * time.Second
+		}
+
+		// check for the key and cert files
+		if _, err := os.Stat(c.TLS.Key); err != nil {
+			if os.IsNotExist(err) {
+				return nil, errors.Errorf("key file '%s' does not exists", c.TLS.Key)
+			}
+
+			return nil, err
+		}
+
+		if _, err := os.Stat(c.TLS.Cert); err != nil {
+			if os.IsNotExist(err) {
+				return nil, errors.Errorf("cert file '%s' does not exists", c.TLS.Cert)
+			}
+
+			return nil, err
+		}
+
+		// if rootCA is provided - check it
+		if c.TLS.RootCA != "" {
+			if _, err := os.Stat(c.TLS.RootCA); err != nil {
+				if os.IsNotExist(err) {
+					return nil, errors.Errorf("rootCA file '%s' does not exists", c.TLS.RootCA)
+				}
+
+				return nil, err
+			}
 		}
 
 		tlsDialerConfig, err := c.tlsConfig()
@@ -51,6 +79,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 			NetDialer: netDialer,
 			Config:    tlsDialerConfig,
 		}
+
 		opts = append(opts, kgo.Dialer(tlsDialer.DialContext))
 	}
 
@@ -264,7 +293,9 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 }
 
 func (c *config) tlsConfig() (*tls.Config, error) {
-	tlsDialerConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+	tlsDialerConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
 
 	// RootCA is optional, but if provided - check it
 	if c.TLS.RootCA != "" {
@@ -318,4 +349,11 @@ func (c *config) tlsConfig() (*tls.Config, error) {
 	}
 
 	return tlsDialerConfig, nil
+}
+
+func (c *config) enableTLS() bool {
+	if c.TLS != nil {
+		return (c.TLS.RootCA != "" && c.TLS.Key != "" && c.TLS.Cert != "") || (c.TLS.Key != "" && c.TLS.Cert != "")
+	}
+	return false
 }
