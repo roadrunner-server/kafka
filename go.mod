@@ -5,7 +5,7 @@ go 1.22.1
 require (
 	github.com/aws/aws-sdk-go v1.51.4
 	github.com/goccy/go-json v0.10.2
-	github.com/roadrunner-server/api/v4 v4.11.1
+	github.com/roadrunner-server/api/v4 v4.12.0
 	github.com/roadrunner-server/endure/v2 v2.4.3
 	github.com/roadrunner-server/errors v1.4.0
 	github.com/twmb/franz-go v1.16.1
