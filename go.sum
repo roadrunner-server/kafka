@@ -1,5 +1,5 @@
-github.com/aws/aws-sdk-go v1.51.4 h1:yOVfGhRJyReBrACK0alLosJl8iXhWkNY1vrePYmhHdw=
-github.com/aws/aws-sdk-go v1.51.4/go.mod h1:LF8svs817+Nz+DmiMQKTO3ubZ/6IaTpq3TjupRn3Eqk=
+github.com/aws/aws-sdk-go v1.51.11 h1:El5VypsMIz7sFwAAj/j06JX9UGs4KAbAIEaZ57bNY4s=
+github.com/aws/aws-sdk-go v1.51.11/go.mod h1:LF8svs817+Nz+DmiMQKTO3ubZ/6IaTpq3TjupRn3Eqk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -23,10 +23,10 @@ github.com/pierrec/lz4/v4 v4.1.21/go.mod h1:gZWDp/Ze/IJXGXf23ltt2EXimqmTUXEy0GFu
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/roadrunner-server/api/v4 v4.11.1 h1:QDcAg+2YL6z1dBWUZi32qyFUaJAAF6LsIO8hqATegZU=
-github.com/roadrunner-server/api/v4 v4.11.1/go.mod h1:YA8GSWngFSJMtloWsuqJg6GO9a2O9Lcz/743PxaCwd0=
-github.com/roadrunner-server/endure/v2 v2.4.3 h1:R9DdsLiLjtSFivZ1HKk/1eDZ0TYaKHQzakVwz9D2hto=
-github.com/roadrunner-server/endure/v2 v2.4.3/go.mod h1:4n3PdwZ3h/IRL2enDGvEVXtaQgqRnZ74VOyZtOJq528=
+github.com/roadrunner-server/api/v4 v4.12.0 h1:N8AC+b7uzrDpTPnFTBVWNIs9ZMV42hwKDCo29X84iS8=
+github.com/roadrunner-server/api/v4 v4.12.0/go.mod h1:nLV2f4O7tDh5DaMDff4oX1bNJ9erz7eyq+4TajgKGck=
+github.com/roadrunner-server/endure/v2 v2.4.4 h1:Fu7q3+Kx41ebUjfi+BH8f3yEj8+9onFERSg1T0BCHaQ=
+github.com/roadrunner-server/endure/v2 v2.4.4/go.mod h1:SifASS4cWUoQPH9U4RJ3EZ8rYYG93i57vZ73pORRrtw=
 github.com/roadrunner-server/errors v1.4.0 h1:Odjg3VZrj1q5Y8ILwoN+JgERyv0pkhrWPNOM4h68iQ8=
 github.com/roadrunner-server/errors v1.4.0/go.mod h1:78PvraAFj+Sxy5nDmo0S+h6rEMLFIDszWZxA3B0sPAs=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
