@@ -8,16 +8,16 @@ require (
 	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.12.0
-	github.com/roadrunner-server/config/v4 v4.6.9
+	github.com/roadrunner-server/config/v4 v4.7.0
 	github.com/roadrunner-server/endure/v2 v2.4.4
 	github.com/roadrunner-server/goridge/v3 v3.8.2
-	github.com/roadrunner-server/informer/v4 v4.3.16
-	github.com/roadrunner-server/jobs/v4 v4.7.15
+	github.com/roadrunner-server/informer/v4 v4.4.0
+	github.com/roadrunner-server/jobs/v4 v4.8.0
 	github.com/roadrunner-server/kafka/v4 v4.4.18
-	github.com/roadrunner-server/logger/v4 v4.2.16
-	github.com/roadrunner-server/otel/v4 v4.3.15
-	github.com/roadrunner-server/resetter/v4 v4.1.2
-	github.com/roadrunner-server/rpc/v4 v4.2.17
+	github.com/roadrunner-server/logger/v4 v4.3.0
+	github.com/roadrunner-server/otel/v4 v4.4.0
+	github.com/roadrunner-server/resetter/v4 v4.2.0
+	github.com/roadrunner-server/rpc/v4 v4.3.0
 	github.com/roadrunner-server/server/v4 v4.5.9
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
@@ -70,7 +70,7 @@ require (
 	github.com/prometheus/common v0.52.3 // indirect
 	github.com/prometheus/procfs v0.13.0 // indirect
 	github.com/roadrunner-server/errors v1.4.0 // indirect
-	github.com/roadrunner-server/sdk/v4 v4.6.0 // indirect
+	github.com/roadrunner-server/sdk/v4 v4.7.0 // indirect
 	github.com/roadrunner-server/tcplisten v1.4.0 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
