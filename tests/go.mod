@@ -8,17 +8,17 @@ require (
 	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.12.0
-	github.com/roadrunner-server/config/v4 v4.8.0
+	github.com/roadrunner-server/config/v4 v4.8.1
 	github.com/roadrunner-server/endure/v2 v2.4.4
 	github.com/roadrunner-server/goridge/v3 v3.8.2
-	github.com/roadrunner-server/informer/v4 v4.5.0
-	github.com/roadrunner-server/jobs/v4 v4.9.0
+	github.com/roadrunner-server/informer/v4 v4.5.1
+	github.com/roadrunner-server/jobs/v4 v4.9.1
 	github.com/roadrunner-server/kafka/v4 v4.4.18
-	github.com/roadrunner-server/logger/v4 v4.4.0
-	github.com/roadrunner-server/otel/v4 v4.5.0
-	github.com/roadrunner-server/resetter/v4 v4.3.0
-	github.com/roadrunner-server/rpc/v4 v4.4.0
-	github.com/roadrunner-server/server/v4 v4.8.0
+	github.com/roadrunner-server/logger/v4 v4.4.1
+	github.com/roadrunner-server/otel/v4 v4.5.1
+	github.com/roadrunner-server/resetter/v4 v4.3.1
+	github.com/roadrunner-server/rpc/v4 v4.4.1
+	github.com/roadrunner-server/server/v4 v4.8.1
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 )
@@ -27,7 +27,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go v1.52.0 // indirect
+	github.com/aws/aws-sdk-go v1.52.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -110,8 +110,8 @@ require (
 	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240429193739-8cf5692501f6 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240429193739-8cf5692501f6 // indirect
