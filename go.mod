@@ -1,6 +1,6 @@
 module github.com/roadrunner-server/kafka/v4
 
-go 1.22.2
+go 1.22.3
 
 require (
 	github.com/aws/aws-sdk-go v1.52.4
