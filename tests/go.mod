@@ -27,7 +27,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go v1.52.4 // indirect
+	github.com/aws/aws-sdk-go v1.52.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -86,7 +86,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
 	github.com/twmb/franz-go v1.16.1 // indirect
-	github.com/twmb/franz-go/pkg/kmsg v1.7.0 // indirect
+	github.com/twmb/franz-go/pkg/kmsg v1.8.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
