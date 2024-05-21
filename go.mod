@@ -3,7 +3,7 @@ module github.com/roadrunner-server/kafka/v4
 go 1.22.3
 
 require (
-	github.com/aws/aws-sdk-go v1.53.5
+	github.com/aws/aws-sdk-go v1.53.6
 	github.com/goccy/go-json v0.10.2
 	github.com/roadrunner-server/api/v4 v4.12.0
 	github.com/roadrunner-server/endure/v2 v2.4.4
