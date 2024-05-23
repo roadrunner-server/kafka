@@ -27,7 +27,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go v1.53.7 // indirect
+	github.com/aws/aws-sdk-go v1.53.9 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -102,7 +102,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.27.0 // indirect
 	go.opentelemetry.io/otel/trace v1.27.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.2.0 // indirect
-	go.temporal.io/api v1.33.0 // indirect
+	go.temporal.io/api v1.34.0 // indirect
 	go.temporal.io/sdk v1.26.1 // indirect
 	go.temporal.io/sdk/contrib/opentelemetry v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
