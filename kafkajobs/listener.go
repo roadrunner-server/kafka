@@ -25,7 +25,7 @@ func (d *Driver) listen() error {
 	}()
 
 	for {
-		fetches := d.kafkaClient.PollRecords(ctx, 10000)
+		fetches := d.kafkaClient.PollRecords(ctx, 100)
 		if fetches.IsClientClosed() {
 			d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
 			d.log.Debug("kafka client closed, sending pipeline stop command")
