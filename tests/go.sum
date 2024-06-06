@@ -163,8 +163,8 @@ github.com/roadrunner-server/resetter/v4 v4.3.2 h1:BYzhDUFw9agQqRzIIFjilmbHTsXoP
 github.com/roadrunner-server/resetter/v4 v4.3.2/go.mod h1:skS1caYwrQYCF29sgZWN6OaZ/BFFP5ekkH4DsTeml9k=
 github.com/roadrunner-server/rpc/v4 v4.4.2 h1:BOK476vpxxckyd9bKOT4Kz9PzQPhabqGRdZfri8JSl0=
 github.com/roadrunner-server/rpc/v4 v4.4.2/go.mod h1:ekAQgdwQ6kAXaUfHDrAKoU4YTsKX+/NP5KO/7FnGk10=
-github.com/roadrunner-server/sdk/v4 v4.7.2 h1:SjTzwfPqt1JhEA8o7goHf1/4eUnSC33evDBcbbeGlCQ=
-github.com/roadrunner-server/sdk/v4 v4.7.2/go.mod h1:OteLuhqeHlU+NDlOnrEegCRj0Nmm9EqrMBwO7KXWDO4=
+github.com/roadrunner-server/sdk/v4 v4.7.3 h1:w007xSk96SDFH/IJ3ZsP3AkU5opnw2/g+cBjQxd+WGA=
+github.com/roadrunner-server/sdk/v4 v4.7.3/go.mod h1:pOHmaPzvxOn/xhKC9tHibHYSyNXWlUDQvp7pcRiuDGE=
 github.com/roadrunner-server/server/v4 v4.8.2 h1:PdB7i1UWxsoMuWJtGSX8oRCJHl5+/ssOkRS6iYE8qyk=
 github.com/roadrunner-server/server/v4 v4.8.2/go.mod h1:g3ix1K5G3Vrfw57hTQMKAep7zY6RSWSLDHhQ09BCPLo=
 github.com/roadrunner-server/tcplisten v1.4.0 h1:yWo09zktv/CSV6VywLfw4pwNcUchgTiIrW4uIICtO5M=
