@@ -3,22 +3,22 @@ module tests
 go 1.22.4
 
 require (
-	github.com/docker/docker v26.1.4+incompatible
+	github.com/docker/docker v27.0.0+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/goccy/go-json v0.10.3
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.12.0
-	github.com/roadrunner-server/config/v4 v4.9.1
+	github.com/roadrunner-server/config/v4 v4.9.2
 	github.com/roadrunner-server/endure/v2 v2.4.5
 	github.com/roadrunner-server/goridge/v3 v3.8.2
-	github.com/roadrunner-server/informer/v4 v4.5.3
-	github.com/roadrunner-server/jobs/v4 v4.9.3
+	github.com/roadrunner-server/informer/v4 v4.5.4
+	github.com/roadrunner-server/jobs/v4 v4.9.4
 	github.com/roadrunner-server/kafka/v4 v4.4.18
-	github.com/roadrunner-server/logger/v4 v4.4.3
-	github.com/roadrunner-server/otel/v4 v4.5.3
-	github.com/roadrunner-server/resetter/v4 v4.3.3
-	github.com/roadrunner-server/rpc/v4 v4.4.3
-	github.com/roadrunner-server/server/v4 v4.8.3
+	github.com/roadrunner-server/logger/v4 v4.4.4
+	github.com/roadrunner-server/otel/v4 v4.5.4
+	github.com/roadrunner-server/resetter/v4 v4.3.4
+	github.com/roadrunner-server/rpc/v4 v4.4.4
+	github.com/roadrunner-server/server/v4 v4.8.4
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 )
@@ -27,7 +27,7 @@ replace github.com/roadrunner-server/kafka/v4 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go v1.53.21 // indirect
+	github.com/aws/aws-sdk-go v1.54.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -103,11 +103,11 @@ require (
 	go.opentelemetry.io/otel/trace v1.27.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.temporal.io/api v1.34.0 // indirect
-	go.temporal.io/sdk v1.26.1 // indirect
-	go.temporal.io/sdk/contrib/opentelemetry v0.5.0 // indirect
+	go.temporal.io/sdk v1.27.0 // indirect
+	go.temporal.io/sdk/contrib/opentelemetry v0.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.24.0 // indirect
-	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8 // indirect
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
