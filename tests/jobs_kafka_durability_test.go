@@ -14,8 +14,8 @@ import (
 	"tests/helpers"
 	mocklogger "tests/mock"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -47,7 +47,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 
 	// Create a network
 	networkName := "rr-e2e-tests"
-	_, err = cli.NetworkCreate(ctx, networkName, types.NetworkCreate{})
+	_, err = cli.NetworkCreate(ctx, networkName, network.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 		},
 	}
 
-	zk, err := cli.ImagePull(ctx, "confluentinc/cp-zookeeper:latest", types.ImagePullOptions{})
+	zk, err := cli.ImagePull(ctx, "confluentinc/cp-zookeeper:latest", image.PullOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 		return nil, err
 	}
 
-	cpKafka, err := cli.ImagePull(ctx, "confluentinc/cp-kafka:latest", types.ImagePullOptions{})
+	cpKafka, err := cli.ImagePull(ctx, "confluentinc/cp-kafka:latest", image.PullOptions{})
 	if err != nil {
 		return nil, err
 	}
