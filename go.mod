@@ -1,4 +1,4 @@
-module github.com/roadrunner-server/kafka/v4
+module github.com/roadrunner-server/kafka/v5
 
 go 1.22.5
 

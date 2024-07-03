@@ -13,7 +13,7 @@ require (
 	github.com/roadrunner-server/goridge/v3 v3.8.2
 	github.com/roadrunner-server/informer/v4 v4.5.5
 	github.com/roadrunner-server/jobs/v4 v4.10.0
-	github.com/roadrunner-server/kafka/v4 v4.4.18
+	github.com/roadrunner-server/kafka/v5 v5.0.0
 	github.com/roadrunner-server/logger/v4 v4.4.5
 	github.com/roadrunner-server/otel/v4 v4.5.5
 	github.com/roadrunner-server/resetter/v4 v4.3.5
@@ -23,7 +23,7 @@ require (
 	go.uber.org/zap v1.27.0
 )
 
-replace github.com/roadrunner-server/kafka/v4 => ../
+replace github.com/roadrunner-server/kafka/v5 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect

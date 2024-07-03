@@ -23,7 +23,7 @@ import (
 	"github.com/roadrunner-server/endure/v2"
 	"github.com/roadrunner-server/informer/v4"
 	"github.com/roadrunner-server/jobs/v4"
-	"github.com/roadrunner-server/kafka/v4"
+	"github.com/roadrunner-server/kafka/v5"
 	"github.com/roadrunner-server/logger/v4"
 	"github.com/roadrunner-server/resetter/v4"
 	"github.com/roadrunner-server/server/v4"

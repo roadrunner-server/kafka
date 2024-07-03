@@ -7,15 +7,16 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"time"
+
 	"tests/helpers"
 	mocklogger "tests/mock"
-	"time"
 
 	"github.com/roadrunner-server/config/v4"
 	"github.com/roadrunner-server/endure/v2"
 	"github.com/roadrunner-server/informer/v4"
 	"github.com/roadrunner-server/jobs/v4"
-	kp "github.com/roadrunner-server/kafka/v4"
+	kp "github.com/roadrunner-server/kafka/v5"
 	"github.com/roadrunner-server/resetter/v4"
 	rpcPlugin "github.com/roadrunner-server/rpc/v4"
 	"github.com/roadrunner-server/server/v4"

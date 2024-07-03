@@ -4,7 +4,7 @@ import (
 	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
 	"github.com/roadrunner-server/endure/v2/dep"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/kafka/v4/kafkajobs"
+	"github.com/roadrunner-server/kafka/v5/kafkajobs"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 )
