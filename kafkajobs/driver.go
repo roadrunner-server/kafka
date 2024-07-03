@@ -10,8 +10,9 @@ import (
 	"unsafe"
 
 	"github.com/goccy/go-json"
-	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
 	"github.com/roadrunner-server/errors"
+	"github.com/roadrunner-server/events"
 	"github.com/twmb/franz-go/pkg/kgo"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
@@ -37,16 +38,20 @@ type Driver struct {
 	tracer   *sdktrace.TracerProvider
 	prop     propagation.TextMapPropagator
 
+	// events
+	eventsCh chan events.Event
+	eventBus *events.Bus
+	id       string
+
 	// kafka config
 	kafkaClient    *kgo.Client
 	kafkaCancelCtx context.CancelFunc
 	recordsCh      chan *kgo.Record
 	requeueCh      chan *Item
 
-	listeners  uint32
-	delayed    *int64
-	commandsCh chan<- jobs.Commander
-	stopped    uint64
+	listeners uint32
+	delayed   *int64
+	stopped   uint64
 
 	once sync.Once
 }
@@ -54,12 +59,12 @@ type Driver struct {
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
 	UnmarshalKey(name string, out any) error
-	// Has checks if config section exists.
+	// Has checks if a config section exists.
 	Has(name string) bool
 }
 
 // FromConfig initializes kafka pipeline from the configuration
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq jobs.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -97,17 +102,25 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	}
 	// PARSE CONFIGURATION END -------
 
+	eventsCh := make(chan events.Event, 1)
+	eventBus, id := events.NewEventBus()
+
 	jb := &Driver{
-		tracer:     tracer,
-		prop:       prop,
-		log:        log,
-		pq:         pq,
-		stopped:    0,
-		recordsCh:  make(chan *kgo.Record, 100),
-		requeueCh:  make(chan *Item, 10),
-		commandsCh: cmder,
-		delayed:    toPtr(int64(0)),
-		cfg:        &conf,
+		tracer: tracer,
+		prop:   prop,
+		log:    log,
+		pq:     pq,
+
+		// events
+		eventsCh: eventsCh,
+		eventBus: eventBus,
+		id:       id,
+
+		stopped:   0,
+		recordsCh: make(chan *kgo.Record, 100),
+		requeueCh: make(chan *Item, 10),
+		delayed:   toPtr(int64(0)),
+		cfg:       &conf,
 	}
 
 	jb.kafkaClient, err = kgo.NewClient(opts...)
@@ -129,7 +142,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 }
 
 // FromPipeline initializes a pipeline on-the-fly
-func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue, cmder chan<- jobs.Commander) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -203,17 +216,25 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		return nil, errors.E(op, err)
 	}
 
+	eventsCh := make(chan events.Event, 1)
+	eventBus, id := events.NewEventBus()
+
 	jb := &Driver{
-		tracer:     tracer,
-		prop:       prop,
-		log:        log,
-		pq:         pq,
-		stopped:    0,
-		recordsCh:  make(chan *kgo.Record, 100),
-		requeueCh:  make(chan *Item, 10),
-		commandsCh: cmder,
-		delayed:    toPtr(int64(0)),
-		cfg:        &conf,
+		tracer: tracer,
+		prop:   prop,
+		log:    log,
+		pq:     pq,
+
+		// events
+		eventsCh: eventsCh,
+		eventBus: eventBus,
+		id:       id,
+
+		stopped:   0,
+		recordsCh: make(chan *kgo.Record, 100),
+		requeueCh: make(chan *Item, 10),
+		delayed:   toPtr(int64(0)),
+		cfg:       &conf,
 	}
 
 	jb.kafkaClient, err = kgo.NewClient(opts...)
@@ -359,7 +380,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 	}
 	d.mu.Unlock()
 
-	// increase number of listeners
+	// set the number of listeners
 	atomic.StoreUint32(&d.listeners, 1)
 
 	d.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))

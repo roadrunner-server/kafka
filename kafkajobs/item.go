@@ -1,10 +1,11 @@
 package kafkajobs
 
 import (
+	"maps"
 	"sync/atomic"
 
 	"github.com/goccy/go-json"
-	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
 	"github.com/roadrunner-server/errors"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -16,15 +17,15 @@ const (
 )
 
 type Item struct {
-	// Job contains pluginName of job broker (usually PHP class).
+	// Job contains the pluginName of job broker (usually PHP class).
 	Job string `json:"job"`
-	// Ident is unique identifier of the job, should be provided from outside
+	// Ident is a unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
 	// Payload is string data (usually JSON) passed to Job broker.
 	Payload []byte `json:"payload"`
 	// Headers with key-values pairs
 	headers map[string][]string
-	// Options contains set of PipelineOptions specific to job execution. Can be empty.
+	// Options contain a set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 
 	// kafka related fields
@@ -35,10 +36,10 @@ type Item struct {
 	record    *kgo.Record
 }
 
-// Options carry information about how to handle given job.
+// Options carry information about how to handle a given job.
 type Options struct {
 	// Priority is job priority, default - 10
-	// pointer to distinguish 0 as a priority and nil as priority not set
+	// pointer to distinguish 0 as a priority and nil as a priority not set
 	Priority int64 `json:"priority"`
 	// Pipeline manually specified pipeline.
 	Pipeline string `json:"pipeline,omitempty"`
@@ -126,6 +127,21 @@ func (i *Item) Nack() error {
 	return nil
 }
 
+func (i *Item) NackWithOptions(requeue bool, _ int) error {
+	if atomic.LoadUint64(i.stopped) == 1 {
+		return errors.Str("failed to NackWithOptions the JOB, the pipeline is probably stopped")
+	}
+
+	if requeue {
+		err := i.Requeue(nil, 0)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (i *Item) Copy() *Item {
 	item := new(Item)
 	*item = *i
@@ -145,7 +161,7 @@ func (i *Item) Copy() *Item {
 }
 
 // Requeue with the provided delay, handled by the Nack
-func (i *Item) Requeue(headers map[string][]string, _ int64) error {
+func (i *Item) Requeue(headers map[string][]string, _ int) error {
 	// check if we have jobs in worker, but the consumer was already stopped
 	// TODO: should not be needed after logic update
 	if atomic.LoadUint64(i.stopped) == 1 {
@@ -153,7 +169,13 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	}
 
 	msg := i.Copy()
-	msg.headers = headers
+	if msg.headers == nil {
+		msg.headers = make(map[string][]string, 2)
+	}
+
+	if headers != nil {
+		maps.Copy(msg.headers, headers)
+	}
 
 	select {
 	case i.requeueCh <- msg:
