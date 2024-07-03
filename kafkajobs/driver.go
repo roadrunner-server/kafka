@@ -416,6 +416,8 @@ func (d *Driver) Stop(ctx context.Context) error {
 
 	// remove all pending JOBS associated with the pipeline
 	_ = d.pq.Remove(pipe.Name())
+	// unsubscribe from the event bus
+	d.eventBus.Unsubscribe(d.id)
 
 	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
 
