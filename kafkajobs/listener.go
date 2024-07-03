@@ -4,13 +4,19 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"sync/atomic"
 
 	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
+	"github.com/roadrunner-server/events"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
+)
+
+const (
+	restartStr string = "restart"
 )
 
 func (d *Driver) listen() error {
@@ -27,24 +33,29 @@ func (d *Driver) listen() error {
 	for {
 		fetches := d.kafkaClient.PollRecords(ctx, 100)
 		if fetches.IsClientClosed() {
-			d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
-			d.log.Debug("kafka client closed, sending pipeline stop command")
+			// recreate pipeline on fail
+			d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
+			d.log.Debug("kafka client closed, sending pipeline restart command")
+
+			// remove all listeners
+			atomic.StoreUint32(&d.listeners, 0)
+
 			return errors.New("client is closed, stopping the pipeline")
 		}
 
-		// Errors returns all errors in a fetch with the topic and partition that
+		// Errors return all errors in a fetch with the topic and partition that
 		// errored.
 		//
 		// There are four classes of errors possible:
 		//
-		//  1. a normal kerr.Error; these are usually the non-retriable kerr.Errors,
-		//     but theoretically a non-retriable error can be fixed at runtime (auth
+		//  1. a normal kerr.Error; these are usually the non-retrievable kerr.Errors,
+		//     but theoretically a non-retrievable error can be fixed at runtime (auth
 		//     error? fix auth). It is worth restarting the client for these errors if
 		//     you do not intend to fix this problem at runtime.
 		//
 		//  2. an injected *ErrDataLoss; these are informational, the client
 		//     automatically resets consuming to where it should and resumes. This
-		//     error is worth logging and investigating, but not worth restarting the
+		//     error is worth logging and investigating but not worth restarting the
 		//     client for.
 		//
 		//  3. an untyped batch parse failure; these are usually unrecoverable by
@@ -76,7 +87,7 @@ func (d *Driver) listen() error {
 				// https://kafka.apache.org/protocol.html#protocol_error_codes
 				switch errP.Retriable {
 				case true:
-					d.log.Warn("retriable consumer error, restarting consumer",
+					d.log.Warn("retrievable consumer error, restarting consumer",
 						zap.String("topic", errs[i].Topic),
 						zap.Int32("partition", errs[i].Partition),
 						zap.Int16("code", errP.Code),
@@ -95,15 +106,19 @@ func (d *Driver) listen() error {
 					}
 					continue
 				case false:
-					d.log.Error("non-retriable consumer error",
+					d.log.Error("non-recoverable consumer error",
 						zap.String("topic", errs[i].Topic),
 						zap.Int32("partition", errs[i].Partition),
 						zap.Int16("code", errP.Code),
 						zap.String("description", errP.Description),
 						zap.String("message", errP.Message))
 
-					// error is unrecoverable, stop the pipeline
-					d.commandsCh <- newCmd(jobs.Stop, (*d.pipeline.Load()).Name())
+					// error is unrecoverable, recreate a pipeline
+					d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
+
+					// remove all listeners
+					atomic.StoreUint32(&d.listeners, 0)
+
 					return errs[i].Err
 				}
 

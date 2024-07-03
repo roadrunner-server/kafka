@@ -1,10 +1,10 @@
 package kafka
 
 import (
-	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
 	"github.com/roadrunner-server/endure/v2/dep"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/kafka/v4/kafkajobs"
+	"github.com/roadrunner-server/kafka/v5/kafkajobs"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 )
@@ -30,7 +30,7 @@ type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
 	UnmarshalKey(name string, out any) error
 
-	// Has checks if config section exists.
+	// Has checks if a config section exists.
 	Has(name string) bool
 }
 
@@ -65,11 +65,11 @@ func (p *Plugin) Collects() []*dep.In {
 }
 
 // DriverFromConfig constructs kafka driver from the .rr.yaml configuration
-func (p *Plugin) DriverFromConfig(configKey string, pq jobs.Queue, pipeline jobs.Pipeline, cmder chan<- jobs.Commander) (jobs.Driver, error) {
-	return kafkajobs.FromConfig(p.tracer, configKey, p.log, p.cfg, pipeline, pq, cmder)
+func (p *Plugin) DriverFromConfig(configKey string, pq jobs.Queue, pipeline jobs.Pipeline) (jobs.Driver, error) {
+	return kafkajobs.FromConfig(p.tracer, configKey, p.log, p.cfg, pipeline, pq)
 }
 
 // DriverFromPipeline constructs kafka driver from pipeline
-func (p *Plugin) DriverFromPipeline(pipe jobs.Pipeline, pq jobs.Queue, cmder chan<- jobs.Commander) (jobs.Driver, error) {
-	return kafkajobs.FromPipeline(p.tracer, pipe, p.log, p.cfg, pq, cmder)
+func (p *Plugin) DriverFromPipeline(pipe jobs.Pipeline, pq jobs.Queue) (jobs.Driver, error) {
+	return kafkajobs.FromPipeline(p.tracer, pipe, p.log, p.cfg, pq)
 }
