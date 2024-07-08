@@ -42,7 +42,6 @@ func TestKafkaInitCG(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
 		Path:    "configs/.rr-kafka-init-cg.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -153,17 +152,16 @@ func TestKafkaPQCG(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.2.0",
 		Path:    "configs/.rr-kafka-init-pq.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
 	err := cont.RegisterAll(
 		cfg,
+		l,
 		&server.Plugin{},
 		&rpcPlugin.Plugin{},
 		&jobs.Plugin{},
 		&kp.Plugin{},
-		l,
 		&resetter.Plugin{},
 		&informer.Plugin{},
 	)
@@ -253,8 +251,8 @@ func TestKafkaPQCG(t *testing.T) {
 	assert.Equal(t, 0, oLogger.FilterMessageSnippet("job was processed successfully").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was started").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
-	assert.Equal(t, 2, oLogger.FilterMessageSnippet("job processing was started").Len())
-	assert.Equal(t, 2, oLogger.FilterMessageSnippet("------> job poller was stopped <------").Len())
+	assert.Equal(t, 4, oLogger.FilterMessageSnippet("job processing was started").Len())
+	assert.Equal(t, 4, oLogger.FilterMessageSnippet("------> job poller was stopped <------").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("consumer context canceled, stopping the listener").Len())
 	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was pushed successfully").Len(), 100)
 }
@@ -265,7 +263,6 @@ func TestKafkaInit(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
 		Path:    "configs/.rr-kafka-init.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -372,7 +369,6 @@ func TestKafkaDeclareCG(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
 		Path:    "configs/.rr-kafka-declare.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -472,7 +468,6 @@ func TestKafkaDeclare(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
 		Path:    "configs/.rr-kafka-declare.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -572,7 +567,6 @@ func TestKafkaJobsError(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
 		Path:    "configs/.rr-kafka-jobs-err.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -662,7 +656,6 @@ func TestKafkaOTEL(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
 		Path:    "configs/.rr-kafka-otel.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -803,7 +796,6 @@ func TestKafkaPingFailed(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.3.0",
 		Path:    "configs/.rr-kafka-ping-failed.yaml",
-		Prefix:  "rr",
 	}
 
 	l, _ := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -832,7 +824,6 @@ func TestKafkaPingOk(t *testing.T) {
 	cfg := &config.Plugin{
 		Version: "v2023.3.0",
 		Path:    "configs/.rr-kafka-ping-ok.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)

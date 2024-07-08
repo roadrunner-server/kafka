@@ -40,7 +40,6 @@ func pushJobTest(env string, rpcAddress string, pipeline string) func(t *testing
 		cfg := &config.Plugin{
 			Version: "v2023.1.0",
 			Path:    env,
-			Prefix:  "rr",
 		}
 
 		l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)

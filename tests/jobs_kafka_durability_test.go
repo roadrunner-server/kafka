@@ -205,9 +205,8 @@ func TestDurabilityKafka(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*30))
 
 	cfg := &config.Plugin{
-		Version: "2.11.0",
+		Version: "2024.2.0",
 		Path:    "configs/.rr-kafka-durability-redial.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
@@ -309,9 +308,8 @@ func TestDurabilityKafkaCG(t *testing.T) {
 	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second*30))
 
 	cfg := &config.Plugin{
-		Version: "2.11.0",
+		Version: "2024.2.0",
 		Path:    "configs/.rr-kafka-durability-redial-cg.yaml",
-		Prefix:  "rr",
 	}
 
 	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
