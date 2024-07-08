@@ -757,7 +757,7 @@ func TestKafkaOTEL(t *testing.T) {
 	stopCh <- struct{}{}
 	wg.Wait()
 
-	resp, err := http.Get("http://127.0.0.1:9411/api/v2/spans?serviceName=rr_test_kafka")
+	resp, err := http.Get("http://127.0.0.1:9411/api/v2/spans?serviceName=rr_test_kafka") //nolint:noctx
 	assert.NoError(t, err)
 
 	buf, err := io.ReadAll(resp.Body)
@@ -801,11 +801,11 @@ func TestKafkaPingFailed(t *testing.T) {
 	l, _ := mocklogger.ZapTestLogger(zap.DebugLevel)
 	err := cont.RegisterAll(
 		cfg,
+		l,
 		&server.Plugin{},
 		&rpcPlugin.Plugin{},
 		&jobs.Plugin{},
 		&kp.Plugin{},
-		l,
 	)
 	assert.NoError(t, err)
 

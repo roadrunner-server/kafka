@@ -18,7 +18,6 @@ logs:
   mode: development
 
 jobs:
-  num_pollers: 1
   pipeline_size: 100000
   timeout: 1
   pool:
