@@ -2,6 +2,8 @@ module tests
 
 go 1.22.5
 
+toolchain go1.23rc1
+
 require (
 	github.com/docker/docker v27.0.3+incompatible
 	github.com/docker/go-connections v0.5.0
