@@ -9,7 +9,7 @@ require (
 	github.com/goccy/go-json v0.10.3
 	github.com/roadrunner-server/api/v4 v4.16.0
 	github.com/roadrunner-server/endure/v2 v2.4.6
-	github.com/roadrunner-server/errors v1.4.0
+	github.com/roadrunner-server/errors v1.4.1
 	github.com/roadrunner-server/events v1.0.1
 	github.com/twmb/franz-go v1.17.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.28.0

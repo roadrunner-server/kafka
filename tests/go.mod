@@ -71,7 +71,7 @@ require (
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/roadrunner-server/context v1.0.0 // indirect
-	github.com/roadrunner-server/errors v1.4.0 // indirect
+	github.com/roadrunner-server/errors v1.4.1 // indirect
 	github.com/roadrunner-server/events v1.0.1 // indirect
 	github.com/roadrunner-server/pool v1.0.0 // indirect
 	github.com/roadrunner-server/priority_queue v1.0.1 // indirect
