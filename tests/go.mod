@@ -1,8 +1,6 @@
 module tests
 
-go 1.22
-
-toolchain go1.22.5
+go 1.22.5
 
 require (
 	github.com/docker/docker v27.1.1+incompatible
@@ -29,7 +27,7 @@ replace github.com/roadrunner-server/kafka/v5 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go v1.55.1 // indirect
+	github.com/aws/aws-sdk-go v1.55.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
