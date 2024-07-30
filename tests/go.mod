@@ -8,17 +8,17 @@ require (
 	github.com/goccy/go-json v0.10.3
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.16.0
-	github.com/roadrunner-server/config/v5 v5.0.1
+	github.com/roadrunner-server/config/v5 v5.0.2
 	github.com/roadrunner-server/endure/v2 v2.4.6
 	github.com/roadrunner-server/goridge/v3 v3.8.3
-	github.com/roadrunner-server/informer/v5 v5.0.1
-	github.com/roadrunner-server/jobs/v5 v5.0.2
+	github.com/roadrunner-server/informer/v5 v5.0.2
+	github.com/roadrunner-server/jobs/v5 v5.0.3
 	github.com/roadrunner-server/kafka/v5 v5.0.0
-	github.com/roadrunner-server/logger/v5 v5.0.1
+	github.com/roadrunner-server/logger/v5 v5.0.2
 	github.com/roadrunner-server/otel/v5 v5.0.1
-	github.com/roadrunner-server/resetter/v5 v5.0.1
-	github.com/roadrunner-server/rpc/v5 v5.0.1
-	github.com/roadrunner-server/server/v5 v5.0.1
+	github.com/roadrunner-server/resetter/v5 v5.0.2
+	github.com/roadrunner-server/rpc/v5 v5.0.2
+	github.com/roadrunner-server/server/v5 v5.0.2
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 )
@@ -27,7 +27,7 @@ replace github.com/roadrunner-server/kafka/v5 => ../
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go v1.55.2 // indirect
+	github.com/aws/aws-sdk-go v1.55.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -45,7 +45,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.21.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
@@ -90,7 +90,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
-	github.com/twmb/franz-go v1.17.0 // indirect
+	github.com/twmb/franz-go v1.17.1 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.8.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
@@ -118,8 +118,8 @@ require (
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240723171418-e6d459c13d2a // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240723171418-e6d459c13d2a // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240725223205-93522f1f2a9f // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240725223205-93522f1f2a9f // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
