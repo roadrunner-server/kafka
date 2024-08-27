@@ -230,7 +230,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 			case Relative:
 				offset = kgo.NewOffset().Relative(val)
 			case WithEpoch:
-				offset = kgo.NewOffset().WithEpoch(int32(val))
+				offset = kgo.NewOffset().WithEpoch(int32(val)) //nolint:gosec
 			default:
 				offset = kgo.NewOffset().AtStart()
 			}
@@ -269,7 +269,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 						case Relative:
 							kgoOff[kk] = kgo.NewOffset().Relative(vv.Value)
 						case WithEpoch:
-							kgoOff[kk] = kgo.NewOffset().WithEpoch(int32(vv.Value))
+							kgoOff[kk] = kgo.NewOffset().WithEpoch(int32(vv.Value)) //nolint:gosec
 						default:
 							return nil, errors.Errorf("unknown type: %s", vv.Type)
 						}

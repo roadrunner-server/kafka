@@ -176,7 +176,7 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, st
 		case jobs.RRPipeline:
 			rrpipeline = string(msg.Headers[i].Value)
 		case jobs.RRPriority:
-			rrpriority = int64(binary.LittleEndian.Uint64(msg.Headers[i].Value))
+			rrpriority = int64(binary.LittleEndian.Uint64(msg.Headers[i].Value)) //nolint:gosec
 		default:
 			headers[msg.Headers[i].Key] = []string{string(msg.Headers[i].Value)}
 		}
