@@ -309,7 +309,7 @@ func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 	defer span.End()
 
 	return &jobs.State{
-		Priority: uint64(pipe.Priority()),
+		Priority: uint64(pipe.Priority()), //nolint:gosec
 		Pipeline: pipe.Name(),
 		Driver:   pipe.Driver(),
 		Queue:    topics(d.cfg),
@@ -463,7 +463,7 @@ func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 	})
 	// RRPriority
 	rrpri := make([]byte, 8)
-	binary.LittleEndian.PutUint64(rrpri, uint64(msg.Priority()))
+	binary.LittleEndian.PutUint64(rrpri, uint64(msg.Priority())) //nolint:gosec
 	kh = append(kh, kgo.RecordHeader{
 		Key:   jobs.RRPriority,
 		Value: rrpri,
