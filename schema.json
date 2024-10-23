@@ -19,7 +19,7 @@
         },
         "config": {
           "type": "object",
-          "description": "Configuration for Kafka driver.",
+          "description": "Configuration for the Kafka pipeline.",
           "additionalProperties": false,
           "properties": {
             "priority": {
@@ -197,9 +197,11 @@
         "brokers": {
           "description": "Kafka broker addresses.",
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "string",
-            "enum": [
+            "minLength": 1,
+            "examples": [
               "127.0.0.1:9092",
               "127.0.0.1:9002"
             ]
@@ -207,7 +209,7 @@
         },
         "tls": {
           "title": "TLS Configuration",
-          "description": "Configuration options for TLS for Kafka.",
+          "description": "TLS configuration for TLS for Kafka.",
           "type": "object",
           "properties": {
             "key": {
@@ -231,7 +233,7 @@
         "sasl": {
           "title": "SASL Authentication",
           "type": "object",
-          "description": "Configuration for SASL authentication for Kafka.",
+          "description": "SASL configuration for Kafka.",
           "properties": {
             "mechanism": {
               "description": "Mechanism used for the authentication.",
