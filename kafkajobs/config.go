@@ -45,7 +45,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 		// check for the key and cert files
 		if _, err := os.Stat(c.TLS.Key); err != nil {
 			if os.IsNotExist(err) {
-				return nil, errors.Errorf("Private key file '%s' does not exist.", c.TLS.Key)
+				return nil, errors.Errorf("private key file '%s' does not exist", c.TLS.Key)
 			}
 
 			return nil, err
@@ -53,7 +53,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 
 		if _, err := os.Stat(c.TLS.Cert); err != nil {
 			if os.IsNotExist(err) {
-				return nil, errors.Errorf("Public certificate file '%s' does not exist.", c.TLS.Cert)
+				return nil, errors.Errorf("public certificate file '%s' does not exist", c.TLS.Cert)
 			}
 
 			return nil, err
@@ -63,7 +63,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 		if c.TLS.RootCA != "" {
 			if _, err := os.Stat(c.TLS.RootCA); err != nil {
 				if os.IsNotExist(err) {
-					return nil, errors.Errorf("Root CA file '%s' does not exist.", c.TLS.RootCA)
+					return nil, errors.Errorf("root CA file '%s' does not exist", c.TLS.RootCA)
 				}
 
 				return nil, err
@@ -334,7 +334,7 @@ func (c *config) tlsConfig() (*tls.Config, error) {
 		}
 
 		if ok := certPool.AppendCertsFromPEM(rca); !ok {
-			return nil, errors.Errorf("Could not append certificates from Root CA file '%s'.", c.TLS.RootCA)
+			return nil, errors.Errorf("could not append certificates from Root CA file '%s'", c.TLS.RootCA)
 		}
 
 		tlsDialerConfig.Certificates = []tls.Certificate{cert}
