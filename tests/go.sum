@@ -145,8 +145,8 @@ github.com/prometheus/common v0.61.0 h1:3gv/GThfX0cV2lpO7gkTUwZru38mxevy90Bj8YFS
 github.com/prometheus/common v0.61.0/go.mod h1:zr29OCN/2BsJRaFwG8QOBr41D6kkchKbpeNH7pAjb/s=
 github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0learggepc=
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
-github.com/roadrunner-server/api/v4 v4.16.0 h1:UaaKWHelc7bZC4cRdTD802gyIrJFRFTPEk7Bt3U01qI=
-github.com/roadrunner-server/api/v4 v4.16.0/go.mod h1:qTC9Fy+zF4jtoPdZEceGqtrj+8eUB2IsLm51JxKxbV4=
+github.com/roadrunner-server/api/v4 v4.17.0 h1:SVmqWfMCKcvjrpluk+mA1o1D8PT1uXHM6AWykFe6i0I=
+github.com/roadrunner-server/api/v4 v4.17.0/go.mod h1:ALjb4nL64DM9Cm/vTyfWyGt1b3m1lO4fg11YUq6NrqY=
 github.com/roadrunner-server/config/v5 v5.1.0 h1:mED75mkBcF2FkHyXwGHj7b8MwwNAX7xB0i00IQJ0EBE=
 github.com/roadrunner-server/config/v5 v5.1.0/go.mod h1:bv/E9xyRO/wwIShrpTT7tC63ft5MPyRB0oh6QQbhsKE=
 github.com/roadrunner-server/context v1.0.2 h1:MSK6mjG2KsFKS1IoieMrY9Ia7SGxDGh/tagpBQxi1SE=
