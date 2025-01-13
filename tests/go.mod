@@ -5,11 +5,11 @@ go 1.23
 toolchain go1.23.4
 
 require (
-	github.com/docker/docker v27.4.1+incompatible
+	github.com/docker/docker v27.5.0+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/goccy/go-json v0.10.4
 	github.com/google/uuid v1.6.0
-	github.com/roadrunner-server/api/v4 v4.17.0
+	github.com/roadrunner-server/api/v4 v4.18.1
 	github.com/roadrunner-server/config/v5 v5.1.1
 	github.com/roadrunner-server/endure/v2 v2.6.1
 	github.com/roadrunner-server/goridge/v3 v3.8.3
