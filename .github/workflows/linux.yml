@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        php: [ "8.3" ]
+        php: [ "8.4" ]
         go: [ stable ]
         os: [ "ubuntu-latest" ]
     steps:
@@ -121,5 +121,5 @@ jobs:
       - name: upload to codecov
         uses: codecov/codecov-action@v5 # Docs: <https://github.com/codecov/codecov-action>
         with:
-          file: ./coverage/summary.txt
+          files: ./coverage/summary.txt
           fail_ci_if_error: false
