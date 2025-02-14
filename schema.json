@@ -89,6 +89,11 @@
               "description": "group_options sets the consumer group for the client to join and consume in. This option is required if using any other group options.",
               "additionalProperties": false,
               "properties": {
+                "instance_id": {
+                  "description": "InstanceID sets the group consumer's instance ID, switching the group member from 'dynamic' to 'static'.",
+                  "type": "string",
+                  "minLength": 1
+                },
                 "group_id": {
                   "description": "Kafka Group ID",
                   "type": "string",

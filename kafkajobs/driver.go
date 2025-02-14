@@ -96,7 +96,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		return nil, errors.E(op, err)
 	}
 
-	opts, err := conf.InitDefault()
+	opts, err := conf.InitDefault(log)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -211,7 +211,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 	conf.AutoCreateTopics = pipeline.Bool(autoCreateTopicsEnableKey, false)
 	conf.Priority = pipeline.Int(priorityKey, 10)
 
-	opts, err := conf.InitDefault()
+	opts, err := conf.InitDefault(log)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -409,7 +409,15 @@ func (d *Driver) Stop(ctx context.Context) error {
 		d.kafkaCancelCtx()
 	}
 
-	d.kafkaClient.CloseAllowingRebalance()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	err := d.kafkaClient.LeaveGroupContext(ctx)
+	if err != nil {
+		d.log.Error("failed to leave the group", zap.Error(err))
+	}
+
+	d.kafkaClient.Close()
 
 	// properly check for the listeners
 	pipe := *d.pipeline.Load()
