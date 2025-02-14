@@ -3,6 +3,7 @@ package kafkajobs
 import (
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type logger struct {
@@ -25,6 +26,8 @@ func (l *logger) Level() kgo.LogLevel {
 		return kgo.LogLevelWarn
 	case zap.ErrorLevel, zap.PanicLevel, zap.DPanicLevel, zap.FatalLevel:
 		return kgo.LogLevelError
+	case zapcore.InvalidLevel:
+		return kgo.LogLevelNone
 	default:
 		return kgo.LogLevelDebug
 	}
