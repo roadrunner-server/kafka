@@ -99,6 +99,7 @@ type Ping struct {
 
 type GroupOptions struct {
 	GroupID              string `mapstructure:"group_id" json:"group_id"`
+	InstanceID           string `mapstructure:"instance_id" json:"instance_id"`
 	BlockRebalanceOnPoll bool   `mapstructure:"block_rebalance_on_poll" json:"block_rebalance_on_poll"`
 }
 

@@ -15,12 +15,13 @@ import (
 	"github.com/twmb/franz-go/pkg/sasl/aws"
 	"github.com/twmb/franz-go/pkg/sasl/plain"
 	"github.com/twmb/franz-go/pkg/sasl/scram"
+	"go.uber.org/zap"
 )
 
 const defaultPingTimeout = time.Second * 10
 const defaultTLSTimeout = time.Second * 10
 
-func (c *config) InitDefault() ([]kgo.Opt, error) {
+func (c *config) InitDefault(l *zap.Logger) ([]kgo.Opt, error) {
 	const op = errors.Op("config.InitDefault")
 	opts := make([]kgo.Opt, 0, 1)
 
@@ -32,6 +33,7 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 		c.Priority = 10
 	}
 
+	opts = append(opts, kgo.WithLogger(newLogger(l.Named("kgo"))))
 	opts = append(opts, kgo.SeedBrokers(c.Brokers...))
 	opts = append(opts, kgo.MaxVersions(kversion.Stable()))
 	opts = append(opts, kgo.RetryTimeout(time.Minute*5))
@@ -150,6 +152,10 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 	if c.GroupOpts != nil {
 		if c.GroupOpts.GroupID == "" {
 			return nil, errors.Str("no group ID defined for group options")
+		}
+
+		if c.GroupOpts.InstanceID != "" {
+			opts = append(opts, kgo.InstanceID(c.GroupOpts.InstanceID))
 		}
 
 		opts = append(opts, kgo.ConsumerGroup(c.GroupOpts.GroupID))
