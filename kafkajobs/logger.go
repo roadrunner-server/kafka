@@ -23,7 +23,7 @@ func (l *logger) Level() kgo.LogLevel {
 		return kgo.LogLevelInfo
 	case zap.WarnLevel:
 		return kgo.LogLevelWarn
-	case zap.ErrorLevel, zap.PanicLevel, zap.DPanicLevel:
+	case zap.ErrorLevel, zap.PanicLevel, zap.DPanicLevel, zap.FatalLevel:
 		return kgo.LogLevelError
 	default:
 		return kgo.LogLevelDebug
