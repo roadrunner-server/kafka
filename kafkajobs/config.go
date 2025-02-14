@@ -21,6 +21,7 @@ const defaultPingTimeout = time.Second * 10
 const defaultTLSTimeout = time.Second * 10
 
 func (c *config) InitDefault() ([]kgo.Opt, error) {
+	const op = errors.Op("config.InitDefault")
 	opts := make([]kgo.Opt, 0, 1)
 
 	if c.AutoCreateTopics {
@@ -43,20 +44,24 @@ func (c *config) InitDefault() ([]kgo.Opt, error) {
 		}
 
 		// check for the key and cert files
-		if _, err := os.Stat(c.TLS.Key); err != nil {
-			if os.IsNotExist(err) {
-				return nil, errors.Errorf("private key file '%s' does not exist", c.TLS.Key)
-			}
+		if c.TLS.Key != "" {
+			if _, err := os.Stat(c.TLS.Key); err != nil {
+				if os.IsNotExist(err) {
+					return nil, errors.E(op, errors.Errorf("private key file '%s' does not exist", c.TLS.Key))
+				}
 
-			return nil, err
+				return nil, errors.E(op, err)
+			}
 		}
 
-		if _, err := os.Stat(c.TLS.Cert); err != nil {
-			if os.IsNotExist(err) {
-				return nil, errors.Errorf("public certificate file '%s' does not exist", c.TLS.Cert)
-			}
+		if c.TLS.Cert != "" {
+			if _, err := os.Stat(c.TLS.Cert); err != nil {
+				if os.IsNotExist(err) {
+					return nil, errors.E(op, errors.Errorf("public certificate file '%s' does not exist", c.TLS.Cert))
+				}
 
-			return nil, err
+				return nil, errors.E(op, err)
+			}
 		}
 
 		// if rootCA is provided - check it
@@ -297,6 +302,15 @@ func (c *config) tlsConfig() (*tls.Config, error) {
 		MinVersion: tls.VersionTLS12,
 	}
 
+	if c.TLS.Key != "" && c.TLS.Cert != "" {
+		cert, err := tls.LoadX509KeyPair(c.TLS.Cert, c.TLS.Key)
+		if err != nil {
+			return nil, err
+		}
+
+		tlsDialerConfig.Certificates = []tls.Certificate{cert}
+	}
+
 	// RootCA is optional, but if provided - check it
 	if c.TLS.RootCA != "" {
 		// auth type used only for the CA
@@ -313,11 +327,6 @@ func (c *config) tlsConfig() (*tls.Config, error) {
 			tlsDialerConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		default:
 			tlsDialerConfig.ClientAuth = tls.NoClientCert
-		}
-
-		cert, err := tls.LoadX509KeyPair(c.TLS.Cert, c.TLS.Key)
-		if err != nil {
-			return nil, err
 		}
 
 		certPool, err := x509.SystemCertPool()
@@ -337,15 +346,7 @@ func (c *config) tlsConfig() (*tls.Config, error) {
 			return nil, errors.Errorf("could not append certificates from Root CA file '%s'", c.TLS.RootCA)
 		}
 
-		tlsDialerConfig.Certificates = []tls.Certificate{cert}
-		tlsDialerConfig.ClientCAs = certPool
-	} else if c.TLS.Key != "" && c.TLS.Cert != "" {
-		cert, err := tls.LoadX509KeyPair(c.TLS.Cert, c.TLS.Key)
-		if err != nil {
-			return nil, err
-		}
-
-		tlsDialerConfig.Certificates = []tls.Certificate{cert}
+		tlsDialerConfig.RootCAs = certPool
 	}
 
 	return tlsDialerConfig, nil
@@ -353,7 +354,7 @@ func (c *config) tlsConfig() (*tls.Config, error) {
 
 func (c *config) enableTLS() bool {
 	if c.TLS != nil {
-		return c.TLS.Key != "" && c.TLS.Cert != ""
+		return (c.TLS.Key != "" && c.TLS.Cert != "") || c.TLS.RootCA != ""
 	}
 	return false
 }
