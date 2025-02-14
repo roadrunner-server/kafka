@@ -409,6 +409,14 @@ func (d *Driver) Stop(ctx context.Context) error {
 		d.kafkaCancelCtx()
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	err := d.kafkaClient.LeaveGroupContext(ctx)
+	if err != nil {
+		d.log.Error("failed to leave the group", zap.Error(err))
+	}
+
 	d.kafkaClient.Close()
 
 	// properly check for the listeners
