@@ -14,10 +14,10 @@ require (
 	github.com/roadrunner-server/endure/v2 v2.6.1
 	github.com/roadrunner-server/goridge/v3 v3.8.3
 	github.com/roadrunner-server/informer/v5 v5.1.5
-	github.com/roadrunner-server/jobs/v5 v5.1.4
+	github.com/roadrunner-server/jobs/v5 v5.1.5
 	github.com/roadrunner-server/kafka/v5 v5.0.0
 	github.com/roadrunner-server/logger/v5 v5.1.5
-	github.com/roadrunner-server/otel/v5 v5.1.4
+	github.com/roadrunner-server/otel/v5 v5.1.5
 	github.com/roadrunner-server/resetter/v5 v5.1.5
 	github.com/roadrunner-server/rpc/v5 v5.1.5
 	github.com/roadrunner-server/server/v5 v5.2.6
@@ -77,7 +77,7 @@ require (
 	github.com/roadrunner-server/errors v1.4.1 // indirect
 	github.com/roadrunner-server/events v1.0.1 // indirect
 	github.com/roadrunner-server/pool v1.1.3 // indirect
-	github.com/roadrunner-server/priority_queue v1.0.2 // indirect
+	github.com/roadrunner-server/priority_queue v1.0.3 // indirect
 	github.com/roadrunner-server/tcplisten v1.5.2 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
