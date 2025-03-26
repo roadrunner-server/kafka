@@ -9,7 +9,7 @@ require (
 	github.com/docker/go-connections v0.5.0
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
-	github.com/roadrunner-server/api/v4 v4.18.1
+	github.com/roadrunner-server/api/v4 v4.19.0
 	github.com/roadrunner-server/config/v5 v5.1.6
 	github.com/roadrunner-server/endure/v2 v2.6.1
 	github.com/roadrunner-server/goridge/v3 v3.8.3
