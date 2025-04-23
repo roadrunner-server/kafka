@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.0
 
 require (
-	github.com/aws/aws-sdk-go v1.55.6
+	github.com/aws/aws-sdk-go v1.55.7
 	github.com/goccy/go-json v0.10.5
 	github.com/roadrunner-server/api/v4 v4.19.0
 	github.com/roadrunner-server/endure/v2 v2.6.1
@@ -17,7 +17,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.35.0
 	go.opentelemetry.io/otel/trace v1.35.0
 	go.uber.org/zap v1.27.0
-	google.golang.org/genproto v0.0.0-20250414145226-207652e42e2e
+	google.golang.org/genproto v0.0.0-20250422160041-2d3770c4ea7f
 )
 
 require (
@@ -29,7 +29,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/twmb/franz-go/pkg/kmsg v1.11.1 // indirect
+	github.com/twmb/franz-go/pkg/kmsg v1.11.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
