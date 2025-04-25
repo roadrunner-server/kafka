@@ -72,7 +72,7 @@ func (d *Driver) listen() error {
 		var regErr *kerr.Error
 
 		errs := fetches.Errors()
-		for i := 0; i < len(errs); i++ {
+		for i := range errs {
 			switch {
 			case errors.As(errs[i].Err, &edl):
 				d.log.Warn("restarting consumer",
@@ -169,7 +169,7 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, st
 	var rrpriority int64
 	headers := make(map[string][]string)
 
-	for i := 0; i < len(msg.Headers); i++ {
+	for i := range msg.Headers {
 		switch msg.Headers[i].Key {
 		case jobs.RRJob:
 			rrjob = string(msg.Headers[i].Value)

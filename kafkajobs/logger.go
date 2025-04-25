@@ -36,7 +36,7 @@ func (l *logger) Level() kgo.LogLevel {
 func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 	zf := make([]zap.Field, 0, len(keyvals))
 
-	for i := 0; i < len(keyvals); i++ {
+	for i := range keyvals {
 		zf = append(zf, zap.Any("kgo_driver", keyvals[i]))
 	}
 
