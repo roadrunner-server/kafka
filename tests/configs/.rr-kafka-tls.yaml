@@ -6,7 +6,6 @@ rpc:
 server:
   command: "php php_test_files/jobs/jobs_ok.php"
   relay: "pipes"
-  relay_timeout: "20s"
 
 logs:
   level: debug
@@ -16,6 +15,7 @@ logs:
 kafka:
   brokers: ["127.0.0.1:9093"]
   tls:
+    timeout: "10s"
     key: "test-certs/localhost+2-client-key.pem"
     cert: "test-certs/localhost+2-client.pem"
 

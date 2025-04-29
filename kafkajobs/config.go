@@ -42,7 +42,7 @@ func (c *config) InitDefault(l *zap.Logger) ([]kgo.Opt, error) {
 		netDialer := &net.Dialer{Timeout: defaultTLSTimeout}
 
 		if c.TLS.Timeout != 0 {
-			netDialer.Timeout = c.TLS.Timeout * time.Second
+			netDialer.Timeout = c.TLS.Timeout
 		}
 
 		// check for the key and cert files
