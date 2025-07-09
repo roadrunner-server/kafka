@@ -95,7 +95,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 	_, _ = io.Copy(os.Stdout, cpKafka)
 
 	k, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: "confluentinc/cp-kafka",
+		Image: "confluentinc/cp-kafka:7.8.2",
 		Tty:   false,
 		Env: []string{
 			"KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181",
