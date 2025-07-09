@@ -83,7 +83,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 		return nil, err
 	}
 
-	cpKafka, err := cli.ImagePull(ctx, "confluentinc/cp-kafka:latest", image.PullOptions{})
+	cpKafka, err := cli.ImagePull(ctx, "confluentinc/cp-kafka:7.8.2", image.PullOptions{})
 	if err != nil {
 		return nil, err
 	}
