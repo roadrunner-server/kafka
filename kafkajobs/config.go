@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/roadrunner-server/errors"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kversion"
@@ -121,18 +121,18 @@ func (c *config) InitDefault(l *zap.Logger) ([]kgo.Opt, error) {
 				}, nil
 			})))
 		case awsMskIam:
-			sess, err := session.NewSession()
+			cfg, err := awsconfig.LoadDefaultConfig(context.Background())
 			if err != nil {
-				return nil, errors.Errorf("unable to initialize AWS session: %v", err)
+				return nil, errors.Errorf("unable to initialize AWS config: %v", err)
 			}
 
 			opts = append(opts, kgo.SASL(aws.ManagedStreamingIAM(func(ctx context.Context) (aws.Auth, error) {
-				val, err := sess.Config.Credentials.GetWithContext(ctx)
+				creds, err := cfg.Credentials.Retrieve(ctx)
 				if err == nil {
 					return aws.Auth{
-						AccessKey:    val.AccessKeyID,
-						SecretKey:    val.SecretAccessKey,
-						SessionToken: val.SessionToken,
+						AccessKey:    creds.AccessKeyID,
+						SecretKey:    creds.SecretAccessKey,
+						SessionToken: creds.SessionToken,
 						UserAgent:    c.SASL.UserAgent,
 					}, nil
 				}
