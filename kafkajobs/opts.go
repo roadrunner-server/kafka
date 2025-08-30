@@ -117,8 +117,11 @@ type ProducerOpts struct {
 type PartitioningStrategy string
 
 const (
-	PartitionManual  PartitioningStrategy = "manual"
-	PartitionUniform PartitioningStrategy = "uniform"
+	PartitionManual      PartitioningStrategy = "Manual"
+	PartitionUniform     PartitioningStrategy = "Uniform"
+	PartitionRoundRobin  PartitioningStrategy = "RoundRobin"
+	PartitionLeastBackup PartitioningStrategy = "LeastBackup"
+	PartitionSticky      PartitioningStrategy = "Sticky"
 )
 
 type ConsumerOpts struct {

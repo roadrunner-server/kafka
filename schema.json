@@ -39,7 +39,13 @@
                 "partitioning_strategy": {
                   "description": "The partitioning strategy to use for produced records.",
                   "type": "string",
-                  "enum": ["Manual", "Uniform"],
+                  "enum": [
+                    "Manual",
+                    "Uniform",
+                    "RoundRobin",
+                    "LeastBackup",
+                    "Sticky"
+                  ],
                   "default": "Uniform"
                 },
                 "required_acks": {
