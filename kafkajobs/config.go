@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -216,9 +215,7 @@ func (c *config) InitDefault(l *zap.Logger) ([]kgo.Opt, error) {
 		}
 
 		if c.ProducerOpts.PartitioningStrategy != "" {
-			// lowercase to prevent user errors, like Manual vs manual
-			strategy := strings.ToLower(string(c.ProducerOpts.PartitioningStrategy))
-			switch PartitioningStrategy(strategy) {
+			switch c.ProducerOpts.PartitioningStrategy {
 			case PartitionManual:
 				opts = append(opts, kgo.RecordPartitioner(kgo.ManualPartitioner()))
 			case PartitionUniform:

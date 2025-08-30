@@ -198,7 +198,10 @@
               "$ref": "https://raw.githubusercontent.com/roadrunner-server/http/refs/heads/master/schema.json#/$defs/ClientAuthType"
             }
           },
-          "required": ["key", "cert"]
+          "anyOf": [
+            { "required": ["key", "cert"] },
+            { "required": ["root_ca"] }
+          ]
         },
         "sasl": {
           "$ref": "#/definitions/SASL"
