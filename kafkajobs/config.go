@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -211,6 +212,19 @@ func (c *config) InitDefault(l *zap.Logger) ([]kgo.Opt, error) {
 				opts = append(opts, kgo.ProducerBatchCompression(kgo.ZstdCompression()))
 			case snappy:
 				opts = append(opts, kgo.ProducerBatchCompression(kgo.SnappyCompression()))
+			}
+		}
+
+		if c.ProducerOpts.PartitioningStrategy != "" {
+			// lowercase to prevent user errors, like Manual vs manual
+			strategy := strings.ToLower(string(c.ProducerOpts.PartitioningStrategy))
+			switch PartitioningStrategy(strategy) {
+			case PartitionManual:
+				opts = append(opts, kgo.RecordPartitioner(kgo.ManualPartitioner()))
+			case PartitionUniform:
+				// already used by default
+			default:
+				return nil, errors.Errorf("unknown partitioning strategy: %s", c.ProducerOpts.PartitioningStrategy)
 			}
 		}
 	}

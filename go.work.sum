@@ -38,6 +38,7 @@ cloud.google.com/go/aiplatform v1.89.0/go.mod h1:TzZtegPkinfXTtXVvZZpxx7noINFMVD
 cloud.google.com/go/aiplatform v1.92.0/go.mod h1:CZfWopi/5tFH2ZwiNoDKhhnNQ9HLVYDrnWbVKCUtvlk=
 cloud.google.com/go/aiplatform v1.95.0/go.mod h1:M5nwhnVdHzhC9dWc0QRjVl88+7inOALb+9V30jnLECk=
 cloud.google.com/go/aiplatform v1.97.0/go.mod h1:wfBegoat/UXnLSpPWCxDC3xzrMpFW/MNrAA5h49kI+Q=
+cloud.google.com/go/aiplatform v1.99.0/go.mod h1:bOuku89ZrJVGkCUbEV3JHWRtOlneAXXMGMvaPhWVqfo=
 cloud.google.com/go/analytics v0.21.3 h1:TFBC1ZAqX9/jL56GEXdLrVe5vT3I22bDVWyDwZX4IEg=
 cloud.google.com/go/analytics v0.22.0 h1:w8KIgW8NRUHFVKjpkwCpLaHsr685tJ+ckPStOaSCZz0=
 cloud.google.com/go/analytics v0.22.0/go.mod h1:eiROFQKosh4hMaNhF85Oc9WO97Cpa7RggD40e/RBy8w=
@@ -170,6 +171,7 @@ cloud.google.com/go/compute v1.38.0/go.mod h1:oAFNIuXOmXbK/ssXm3z4nZB8ckPdjltJ7x
 cloud.google.com/go/compute v1.39.0/go.mod h1:YhfR75WOZ7VbNPn9qWR95JKuDiJ2/yujYDpZqTnFHSo=
 cloud.google.com/go/compute v1.41.0/go.mod h1:P1doTJnlwurJDzIQFMp4mgU+vyCe9HU2NWTlqTfq3MY=
 cloud.google.com/go/compute v1.42.0/go.mod h1:AE0hsarwPZohZIj3x1Yabea9Re+cTC3QPzvM4OeZpJU=
+cloud.google.com/go/compute v1.43.0/go.mod h1:CVU1vblYdyi+kDBwugna5cHxDVAZ7FHMqKT9/aRHIJs=
 cloud.google.com/go/compute/metadata v0.2.3 h1:mg4jlk7mCAj6xXp9UJ4fjI9VUI5rubuGBW5aJ7UnBMY=
 cloud.google.com/go/compute/metadata v0.2.3/go.mod h1:VAV5nSsACxMJvgaAuX6Pk2AawlZn8kiOGuCv6gTkwuA=
 cloud.google.com/go/compute/metadata v0.3.0 h1:Tz+eQXMEqDIKRsmY3cHTL6FVaynIjX2QxYC4trgAKZc=
@@ -251,6 +253,7 @@ cloud.google.com/go/datastream v1.10.0 h1:ra/+jMv36zTAGPfi8TRne1hXme+UsKtdcK4j6b
 cloud.google.com/go/datastream v1.10.3 h1:Z2sKPIB7bT2kMW5Uhxy44ZgdJzxzE5uKjavoW+EuHEE=
 cloud.google.com/go/datastream v1.10.3/go.mod h1:YR0USzgjhqA/Id0Ycu1VvZe8hEWwrkjuXrGbzeDOSEA=
 cloud.google.com/go/datastream v1.14.1/go.mod h1:JqMKXq/e0OMkEgfYe0nP+lDye5G2IhIlmencWxmesMo=
+cloud.google.com/go/datastream v1.15.0/go.mod h1:eA4ZWd7e21YtG6Yx5SWSwRV5U9wbAb9rKHTcb0x20cQ=
 cloud.google.com/go/deploy v1.13.0 h1:A+w/xpWgz99EYzB6e31gMGAI/P5jTZ2UO7veQK5jQ8o=
 cloud.google.com/go/deploy v1.16.0 h1:5OVjzm8MPC5kP+Ywbs0mdE0O7AXvAUXksSyHAyMFyMg=
 cloud.google.com/go/deploy v1.16.0/go.mod h1:e5XOUI5D+YGldyLNZ21wbp9S8otJbBE4i88PtO9x/2g=
@@ -430,6 +433,7 @@ cloud.google.com/go/networkmanagement v1.9.0/go.mod h1:UTUaEU9YwbCAhhz3jEOHr+2/K
 cloud.google.com/go/networkmanagement v1.9.3 h1:HsQk4FNKJUX04k3OI6gUsoveiHMGvDRqlaFM2xGyvqU=
 cloud.google.com/go/networkmanagement v1.9.3/go.mod h1:y7WMO1bRLaP5h3Obm4tey+NquUvB93Co1oh4wpL+XcU=
 cloud.google.com/go/networkmanagement v1.19.1/go.mod h1:icgk265dNnilxQzpr6rO9WuAuuCmUOqq9H6WBeM2Af4=
+cloud.google.com/go/networkmanagement v1.20.0/go.mod h1:t/GQe1ICzaxeETse/6EPEjmjOr9zGyNImVLlxAX+YB4=
 cloud.google.com/go/networksecurity v0.9.1 h1:TBLEkMp3AE+6IV/wbIGRNTxnqLXHCTEQWoxRVC18TzY=
 cloud.google.com/go/networksecurity v0.9.4 h1:947tNIPnj1bMGTIEBo3fc4QrrFKS5hh0bFVsHmFm4Vo=
 cloud.google.com/go/networksecurity v0.9.4/go.mod h1:E9CeMZ2zDsNBkr8axKSYm8XyTqNhiCHf1JO/Vb8mD1w=
@@ -458,6 +462,7 @@ cloud.google.com/go/osconfig v1.12.4 h1:OrRCIYEAbrbXdhm13/JINn9pQchvTTIzgmOCA7uJ
 cloud.google.com/go/osconfig v1.12.4/go.mod h1:B1qEwJ/jzqSRslvdOCI8Kdnp0gSng0xW4LOnIebQomA=
 cloud.google.com/go/osconfig v1.14.5/go.mod h1:XH+NjBVat41I/+xgQzKOJEhuC4xI7lX2INE5SWnVr9U=
 cloud.google.com/go/osconfig v1.14.6/go.mod h1:LS39HDBH0IJDFgOUkhSZUHFQzmcWaCpYXLrc3A4CVzI=
+cloud.google.com/go/osconfig v1.15.0/go.mod h1:0nY8bfGKWJB0Ft5bBKd2zMkjT4Uf0rM3NBFrAGUv1Lk=
 cloud.google.com/go/oslogin v1.10.1 h1:LdSuG3xBYu2Sgr3jTUULL1XCl5QBx6xwzGqzoDUw1j0=
 cloud.google.com/go/oslogin v1.11.0 h1:7OA/BHWna8s+8k1sjTLHs0zRttoktR8a36qjWIvzTco=
 cloud.google.com/go/oslogin v1.11.0/go.mod h1:8GMTJs4X2nOAUVJiPGqIWVcDaF0eniEto3xlOxaboXE=
@@ -532,6 +537,7 @@ cloud.google.com/go/run v1.9.3/go.mod h1:Si9yDIkUGr5vsXE2QVSWFmAjJkv/O8s3tJ1eTxw
 cloud.google.com/go/run v1.10.0/go.mod h1:z7/ZidaHOCjdn5dV0eojRbD+p8RczMk3A7Qi2L+koHg=
 cloud.google.com/go/run v1.10.1/go.mod h1:aQWMoB2SNXQJUYIOeLRCacO/2VwdSO9FxpM6jxrimAo=
 cloud.google.com/go/run v1.11.0/go.mod h1:OCGabmueD6ighPLUNCyWiTe5NBYitqOm5MFEuah5A+8=
+cloud.google.com/go/run v1.12.0/go.mod h1:/APJ89UqgGdIdaD1yaTiSYXozx3fNoqKR/cueDFRueI=
 cloud.google.com/go/scheduler v1.10.1 h1:yoZbZR8880KgPGLmACOMCiY2tPk+iX4V/dkxqTirlz8=
 cloud.google.com/go/scheduler v1.10.5 h1:eMEettHlFhG5pXsoHouIM5nRT+k+zU4+GUvRtnxhuVI=
 cloud.google.com/go/scheduler v1.10.5/go.mod h1:MTuXcrJC9tqOHhixdbHDFSIuh7xZF2IysiINDuiq6NI=
@@ -661,6 +667,7 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0/go.mod h1:obipzmGjfSjam60XLwGfqUkJsfiheAl+TUjG+4yzyPM=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.26.0/go.mod h1:2bIszWvQRlJVmJLiuLhukLImRjKPcYdzzsx6darK02A=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.27.0/go.mod h1:yAZHSGnqScoU556rBOVkwLze6WP5N+U11RHuWaGVxwY=
+github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.29.0/go.mod h1:Cz6ft6Dkn3Et6l2v2a9/RpN7epQ1GtDlO6lj8bEcOvw=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.48.1/go.mod h1:jyqM3eLpJ3IbIFDTKVz2rF9T/xWGW0rIriGwnz8l9Tk=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.48.1/go.mod h1:viRWSEhtMZqz1rhwmOVKkWl6SwmVowfL9O2YR5gI2PE=
 github.com/IBM/sarama v1.40.1 h1:lL01NNg/iBeigUbT+wpPysuTYW6roHo6kc1QrffRf0k=
@@ -777,6 +784,7 @@ github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1 h1:QbL/5oDUmRBzO9/Z7Seo
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20200222043503-6f7a984d4dc4 h1:WtGNWLvXpe6ZudgnXrq0barxBImvnnJoMEhXAzcbM0I=
 github.com/go-jose/go-jose/v4 v4.0.4/go.mod h1:NKb5HO1EZccyMpiZNbdUw/14tiXNyUJh188dfnMCAfc=
 github.com/go-jose/go-jose/v4 v4.0.5/go.mod h1:s3P1lRrkT8igV8D9OjyL4WRyHvjB6a4JSllnOrmmBOA=
+github.com/go-jose/go-jose/v4 v4.1.1/go.mod h1:BdsZGqgdO3b6tTc6LSE56wcDbMMLuPsw5d4ZD5f94kA=
 github.com/go-kit/kit v0.9.0 h1:wDJmvq38kDhkVxi50ni9ykkdUr1PKgqKOoi01fa0Mdk=
 github.com/go-kit/log v0.1.0 h1:DGJh0Sm43HbOeYDNnVZFl8BvcYVvjD5bqYJvp0REbwQ=
 github.com/go-kit/log v0.2.1 h1:MRVx0/zhvdseW+Gza6N9rVzU/IVzaeE1SFI4raAhmBU=
@@ -1107,6 +1115,7 @@ go.temporal.io/sdk/contrib/opentelemetry v0.3.0 h1:wOEErZugJF1NcBpcxEAmOQmrcRBw3
 go.uber.org/atomic v1.9.0 h1:ECmE8Bn/WFTYwEW/bpKD3M8VtR/zQVbavAoalC1PYyE=
 go.uber.org/atomic v1.9.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/goleak v1.2.1/go.mod h1:qlT2yGI9QafXHhZZLxlSuNsMw3FFLxBr+tBRlmO1xH4=
+go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.14.0 h1:wBqGXzWJW6m1XrIKlAH0Hs1JJ7+9KBwnIO8v66Q9cHc=
 golang.org/x/crypto v0.14.0/go.mod h1:MVFd36DqK4CsrnJYDkBA3VC4m2GkXAM0PvzMCn4JQf4=
