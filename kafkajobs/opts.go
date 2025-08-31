@@ -104,14 +104,25 @@ type GroupOptions struct {
 }
 
 type ProducerOpts struct {
-	DisableIdempotent  bool             `mapstructure:"disable_idempotent" json:"disable_idempotent"`
-	RequiredAcks       Acks             `mapstructure:"required_acks" json:"required_acks"`
-	MaxMessageBytes    int32            `mapstructure:"max_message_bytes" json:"max_message_bytes"`
-	RequestTimeout     time.Duration    `mapstructure:"request_timeout" json:"request_timeout"`
-	DeliveryTimeout    time.Duration    `mapstructure:"delivery_timeout" json:"delivery_timeout"`
-	TransactionTimeout time.Duration    `mapstructure:"transaction_timeout" json:"transaction_timeout"`
-	CompressionCodec   CompressionCodec `mapstructure:"compression_codec" json:"compression_codec"`
+	DisableIdempotent    bool                 `mapstructure:"disable_idempotent" json:"disable_idempotent"`
+	RequiredAcks         Acks                 `mapstructure:"required_acks" json:"required_acks"`
+	MaxMessageBytes      int32                `mapstructure:"max_message_bytes" json:"max_message_bytes"`
+	RequestTimeout       time.Duration        `mapstructure:"request_timeout" json:"request_timeout"`
+	DeliveryTimeout      time.Duration        `mapstructure:"delivery_timeout" json:"delivery_timeout"`
+	TransactionTimeout   time.Duration        `mapstructure:"transaction_timeout" json:"transaction_timeout"`
+	CompressionCodec     CompressionCodec     `mapstructure:"compression_codec" json:"compression_codec"`
+	PartitioningStrategy PartitioningStrategy `mapstructure:"partitioning_strategy" json:"partitioning_strategy"`
 }
+
+type PartitioningStrategy string
+
+const (
+	PartitionManual      PartitioningStrategy = "Manual"
+	PartitionUniform     PartitioningStrategy = "Uniform"
+	PartitionRoundRobin  PartitioningStrategy = "RoundRobin"
+	PartitionLeastBackup PartitioningStrategy = "LeastBackup"
+	PartitionSticky      PartitioningStrategy = "Sticky"
+)
 
 type ConsumerOpts struct {
 	Topics              []string                     `mapstructure:"topics" json:"topics"`

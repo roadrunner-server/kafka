@@ -6,16 +6,12 @@
   "definitions": {
     "pipeline": {
       "type": "object",
-      "required": [
-        "driver"
-      ],
+      "required": ["driver"],
       "additionalProperties": false,
       "properties": {
         "driver": {
           "type": "string",
-          "enum": [
-            "kafka"
-          ]
+          "enum": ["kafka"]
         },
         "config": {
           "type": "object",
@@ -40,15 +36,23 @@
                   "type": "boolean",
                   "default": false
                 },
+                "partitioning_strategy": {
+                  "description": "The partitioning strategy to use for produced records.",
+                  "type": "string",
+                  "enum": [
+                    "Manual",
+                    "Uniform",
+                    "RoundRobin",
+                    "LeastBackup",
+                    "Sticky"
+                  ],
+                  "default": "Uniform"
+                },
                 "required_acks": {
                   "description": "Sets the required acks for produced records",
                   "type": "string",
                   "default": "AllISRAck",
-                  "enum": [
-                    "NoAck",
-                    "LeaderAck",
-                    "AllISRAck"
-                  ]
+                  "enum": ["NoAck", "LeaderAck", "AllISRAck"]
                 },
                 "max_message_bytes": {
                   "type": "integer",
@@ -63,12 +67,7 @@
                 "compression_codec": {
                   "description": "The compression codec to use, if any.",
                   "type": "string",
-                  "enum": [
-                    "gzip",
-                    "snappy",
-                    "lz4",
-                    "zstd"
-                  ]
+                  "enum": ["gzip", "snappy", "lz4", "zstd"]
                 },
                 "delivery_timeout": {
                   "description": "A rough duration of how long a record can sit around in a batch before timing out, overriding the unlimited default.",
@@ -83,9 +82,7 @@
             },
             "group_options": {
               "type": "object",
-              "required": [
-                "group_id"
-              ],
+              "required": ["group_id"],
               "description": "group_options sets the consumer group for the client to join and consume in. This option is required if using any other group options.",
               "additionalProperties": false,
               "properties": {
@@ -174,10 +171,7 @@
           "items": {
             "type": "string",
             "minLength": 1,
-            "examples": [
-              "127.0.0.1:9092",
-              "127.0.0.1:9002"
-            ]
+            "examples": ["127.0.0.1:9092", "127.0.0.1:9002"]
           }
         },
         "tls": {
@@ -204,9 +198,9 @@
               "$ref": "https://raw.githubusercontent.com/roadrunner-server/http/refs/heads/master/schema.json#/$defs/ClientAuthType"
             }
           },
-          "required": [
-            "key",
-            "cert"
+          "anyOf": [
+            { "required": ["key", "cert"] },
+            { "required": ["root_ca"] }
           ]
         },
         "sasl": {
@@ -220,9 +214,7 @@
     "Offset": {
       "type": "object",
       "description": "Sets the offset to start consuming from, or if OffsetOutOfRange is seen while fetching, to restart consuming from.",
-      "required": [
-        "type"
-      ],
+      "required": ["type"],
       "additionalProperties": false,
       "properties": {
         "type": {
@@ -253,12 +245,7 @@
         "mechanism": {
           "description": "Mechanism used for the authentication.",
           "type": "string",
-          "enum": [
-            "aws_msk_iam",
-            "plain",
-            "SCRAM-SHA-256",
-            "SCRAM-SHA-512"
-          ]
+          "enum": ["aws_msk_iam", "plain", "SCRAM-SHA-256", "SCRAM-SHA-512"]
         },
         "username": {
           "description": "Username for authentication.",

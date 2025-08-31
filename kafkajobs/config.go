@@ -213,6 +213,23 @@ func (c *config) InitDefault(l *zap.Logger) ([]kgo.Opt, error) {
 				opts = append(opts, kgo.ProducerBatchCompression(kgo.SnappyCompression()))
 			}
 		}
+
+		if c.ProducerOpts.PartitioningStrategy != "" {
+			switch c.ProducerOpts.PartitioningStrategy {
+			case PartitionManual:
+				opts = append(opts, kgo.RecordPartitioner(kgo.ManualPartitioner()))
+			case PartitionUniform:
+				// already used by default
+			case PartitionRoundRobin:
+				opts = append(opts, kgo.RecordPartitioner(kgo.RoundRobinPartitioner()))
+			case PartitionLeastBackup:
+				opts = append(opts, kgo.RecordPartitioner(kgo.LeastBackupPartitioner()))
+			case PartitionSticky:
+				opts = append(opts, kgo.RecordPartitioner(kgo.StickyPartitioner()))
+			default:
+				return nil, errors.Errorf("unknown partitioning strategy: %s", c.ProducerOpts.PartitioningStrategy)
+			}
+		}
 	}
 
 	if c.ConsumerOpts != nil {
