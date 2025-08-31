@@ -1000,6 +1000,8 @@ github.com/roadrunner-server/logger/v4 v4.2.7 h1:8bCWB7fH/VZeVoWX7CqU+0VlnsnonES
 github.com/roadrunner-server/logger/v4 v4.2.7/go.mod h1:U21wH+MJM9KFzwUDG0PxQhVL8BLYNnKy0ZauvBOjpHo=
 github.com/roadrunner-server/otel/v4 v4.3.5 h1:bONbqgo9Tte5Dm8O/QNhDc18E12lrGol+gJkYArH3gI=
 github.com/roadrunner-server/otel/v4 v4.3.5/go.mod h1:jd73msopauXo+h1z7C9WtFABBUoKehbayXlO9Vbzhzg=
+github.com/roadrunner-server/otel/v5 v5.3.0 h1:gn301yJOjRaW1QOPcrhqHyh5awwhIwgvBOPuMcOmoko=
+github.com/roadrunner-server/otel/v5 v5.3.0/go.mod h1:rKJOiwyAm3PIICI1sIrWqTIMuL+mWsPtMfNXj75tV2o=
 github.com/roadrunner-server/resetter/v4 v4.0.14 h1:/1sVPJkmgtZZw6U+5r1fFtnCOIt0g2H//ylXouuXM2A=
 github.com/roadrunner-server/resetter/v4 v4.0.14/go.mod h1:eAGbmK1CZhEr+v5chYbdPlwK+XU1LWWsj1V2wFcb8lY=
 github.com/roadrunner-server/rpc/v4 v4.2.8 h1:FTN52oc3NOnDiHNBqBCbrloikFigDNSUxkutowBUquY=

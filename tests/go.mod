@@ -17,7 +17,7 @@ require (
 	github.com/roadrunner-server/jobs/v5 v5.1.8
 	github.com/roadrunner-server/kafka/v5 v5.2.4
 	github.com/roadrunner-server/logger/v5 v5.1.8
-	github.com/roadrunner-server/otel/v5 v5.2.0
+	github.com/roadrunner-server/otel/v5 v5.3.0
 	github.com/roadrunner-server/resetter/v5 v5.1.8
 	github.com/roadrunner-server/rpc/v5 v5.1.8
 	github.com/roadrunner-server/server/v5 v5.2.9
