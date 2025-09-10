@@ -132,6 +132,15 @@
                 "consumer_offset": {
                   "$ref": "#/definitions/Offset"
                 },
+                "pipelining_strategy": {
+                  "description": "The consumption strategy for messages within a single partition.",
+                  "type": "string",
+                  "enum": [
+                    "Serial",
+                    "FanOut"
+                  ],
+                  "default": "FanOut"
+                },
                 "consume_partitions": {
                   "type": "object",
                   "minProperties": 1,

@@ -129,9 +129,17 @@ type ConsumerOpts struct {
 	ConsumeRegexp       bool                         `mapstructure:"consume_regexp" json:"consume_regexp"`
 	MaxFetchMessageSize int32                        `mapstructure:"max_fetch_message_size" json:"max_fetch_message_size"`
 	MinFetchMessageSize int32                        `mapstructure:"min_fetch_message_size" json:"min_fetch_message_size"`
+	PipeliningStrategy  PipeliningStrategy           `mapstructure:"pipelining_strategy" json:"pipelining_strategy"`
 	ConsumePartitions   map[string]map[int32]*Offset `mapstructure:"consume_partitions" json:"consume_partitions"`
 	ConsumerOffset      *Offset                      `mapstructure:"consumer_offset" json:"consumer_offset"`
 }
+
+type PipeliningStrategy string
+
+const (
+	SerialPipelining PipeliningStrategy = "Serial"
+	FanOutPipelining PipeliningStrategy = "FanOut"
+)
 
 type ClientAuthType string
 

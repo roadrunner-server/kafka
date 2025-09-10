@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"sync"
 	"sync/atomic"
 
 	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"github.com/roadrunner-server/events"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
 
@@ -137,16 +138,32 @@ func (d *Driver) listen() error {
 			}
 		}
 
-		fetches.EachRecord(func(r *kgo.Record) {
-			item := fromConsumer(r, d.requeueCh, d.recordsCh, &d.stopped)
+		switch d.cfg.ConsumerOpts.PipeliningStrategy {
+		case SerialPipelining:
+			fetchWg := &sync.WaitGroup{}
+			fetches.EachPartition(func(partition kgo.FetchTopicPartition) {
+				fetchWg.Add(1)
+				itemWg := &sync.WaitGroup{}
 
-			ctxT, span := d.tracer.Tracer(tracerName).Start(otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers)), "kafka_listener")
-			d.prop.Inject(ctxT, propagation.HeaderCarrier(item.headers))
-
-			d.pq.Insert(item)
-
-			span.End()
-		})
+				go func() {
+					defer fetchWg.Done()
+					partition.EachRecord(func(r *kgo.Record) {
+						itemWg.Add(1)
+						item := fromConsumer(r, d.requeueCh, d.recordsCh, itemWg, &d.stopped)
+						d.insertTracedItem(item)
+						itemWg.Wait()
+					})
+				}()
+			})
+			fetchWg.Wait()
+		case FanOutPipelining:
+			fetches.EachRecord(func(r *kgo.Record) {
+				item := fromConsumer(r, d.requeueCh, d.recordsCh, nil, &d.stopped)
+				d.insertTracedItem(item)
+			})
+		default:
+			return errors.New("unknown consumer pipeliningStrategy")
+		}
 
 		if d.cfg.GroupOpts != nil {
 			d.kafkaClient.AllowRebalance()
@@ -154,7 +171,16 @@ func (d *Driver) listen() error {
 	}
 }
 
-func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, stopped *uint64) *Item {
+func (d *Driver) insertTracedItem(item *Item) {
+	ctxT, span := d.tracer.Tracer(tracerName).Start(otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers)), "kafka_listener")
+	d.prop.Inject(ctxT, propagation.HeaderCarrier(item.headers))
+
+	d.pq.Insert(item)
+
+	span.End()
+}
+
+func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, doneWg *sync.WaitGroup, stopped *uint64) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
@@ -203,6 +229,7 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, st
 		stopped:   stopped,
 		requeueCh: reqCh,
 		commitsCh: commCh,
+		doneWg:    doneWg,
 		record:    msg,
 
 		Options: &Options{

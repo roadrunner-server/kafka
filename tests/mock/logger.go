@@ -1,9 +1,12 @@
 package mocklogger
 
 import (
+	"encoding/json"
 	"github.com/roadrunner-server/endure/v2/dep"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"os"
+	"strings"
 )
 
 type ZapLoggerMock struct {
@@ -15,12 +18,36 @@ type Logger interface {
 }
 
 func ZapTestLogger(enab zapcore.LevelEnabler) (*ZapLoggerMock, *ObservedLogs) {
-	core, logs := New(enab)
-	obsLog := zap.New(core, zap.Development())
+	logs := &ObservedLogs{}
+	core := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig()), // or zapcore.NewConsoleEncoder for plain text
+		zapcore.AddSync(os.Stdout),
+		enab,
+	)
 
-	return &ZapLoggerMock{
-		l: obsLog,
-	}, logs
+	logger := zap.New(
+		core,
+		zap.Development(),
+		zap.Hooks(func(entry zapcore.Entry) error {
+			line := strings.TrimSpace(entry.Message)
+			var rawFields map[string]interface{}
+			var c []zapcore.Field
+			jsonStartIndex := strings.Index(line, "{")
+			if jsonStartIndex > 0 {
+				jsonStr := line[jsonStartIndex:]
+				_ = json.Unmarshal([]byte(jsonStr), &rawFields)
+			}
+
+			for field, value := range rawFields {
+				c = append(c, zap.Any(field, value))
+			}
+
+			logs.add(LoggedEntry{entry, c})
+			return nil
+		}),
+	)
+
+	return &ZapLoggerMock{logger}, logs
 }
 
 func (z *ZapLoggerMock) Init() error {

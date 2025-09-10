@@ -37,7 +37,7 @@ import (
 )
 
 func TestKafkaInitCG(t *testing.T) {
-	cont := endure.New(slog.LevelDebug)
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -147,7 +147,7 @@ func TestKafkaInitCG(t *testing.T) {
 }
 
 func TestKafkaPQCG(t *testing.T) {
-	cont := endure.New(slog.LevelDebug)
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.2.0",
@@ -257,8 +257,138 @@ func TestKafkaPQCG(t *testing.T) {
 	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was pushed successfully").Len(), 100)
 }
 
+func TestKafkaPipeliningStrategy(t *testing.T) {
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
+
+	cfg := &config.Plugin{
+		Version: "v2025.1.0",
+		Path:    "configs/.rr-kafka-serial-consumption.yaml",
+	}
+
+	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	err := cont.RegisterAll(
+		cfg,
+		l,
+		&server.Plugin{},
+		&rpcPlugin.Plugin{},
+		&jobs.Plugin{},
+		&kp.Plugin{},
+		&resetter.Plugin{},
+		&informer.Plugin{},
+	)
+	assert.NoError(t, err)
+
+	err = cont.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ch, err := cont.Serve()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	stopCh := make(chan struct{}, 1)
+
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case e := <-ch:
+				assert.Fail(t, "error", e.Error.Error())
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+			case <-sig:
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+				return
+			case <-stopCh:
+				// timeout
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+				return
+			}
+		}
+	}()
+
+	time.Sleep(time.Second * 3)
+	conn, err := net.Dial("tcp", "127.0.0.1:6001")
+	defer func() { _ = conn.Close() }()
+	require.NoError(t, err)
+
+	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+	defer func() { _ = client.Close() }()
+
+	t.Run("PausePipeline", helpers.PausePipelines("127.0.0.1:6001", "test-consume-1", "test-consume-2"))
+	seed := func(topic int, group *sync.WaitGroup) {
+		defer group.Done()
+		for i := 0; i < 20; i++ {
+			resp := &jobsProto.Empty{}
+			req := &jobsProto.PushRequest{Job: &jobsProto.Job{
+				Job:     uuid.NewString(),
+				Id:      uuid.NewString(),
+				Payload: []byte(fmt.Sprintf("%v:%v", topic, i)),
+				Options: &jobsProto.Options{
+					Pipeline: "test-produce",
+					Topic:    fmt.Sprintf("serial-%v", topic),
+				},
+			}}
+			errCall := client.Call("jobs.Push", req, resp)
+			require.NoError(t, errCall)
+		}
+	}
+
+	wgg := &sync.WaitGroup{}
+	wgg.Add(3)
+	for i := 1; i < 4; i++ {
+		go seed(i, wgg)
+	}
+	wgg.Wait()
+
+	t.Run("ResumePipeline", helpers.ResumePipes("127.0.0.1:6001", "test-consume-1", "test-consume-2"))
+
+	time.Sleep(time.Second * 5)
+	t.Run("DestroyPipelines", helpers.DestroyPipelines("127.0.0.1:6001", "test-consume-1", "test-consume-2", "test-produce"))
+
+	stopCh <- struct{}{}
+	wg.Wait()
+
+	assert.Equal(t, 60, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
+	assert.Equal(t, 60, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
+
+	logs := oLogger.FilterMessageSnippet("php consumed:1:").All()
+	assert.Len(t, logs, 20)
+	for i, entry := range oLogger.FilterMessageSnippet("php consumed:1:").All() {
+		assert.Equal(t, fmt.Sprintf("php consumed:1:%v\n", i), entry.Message)
+	}
+
+	logs = oLogger.FilterMessageSnippet("php consumed:2:").All()
+	assert.Len(t, logs, 20)
+	for i, entry := range logs {
+		assert.Equal(t, fmt.Sprintf("php consumed:2:%v\n", i), entry.Message)
+	}
+
+	logs = oLogger.FilterMessageSnippet("php consumed:3:").All()
+	assert.Len(t, logs, 20)
+	for i, entry := range logs {
+		assert.Equal(t, fmt.Sprintf("php consumed:3:%v\n", i), entry.Message)
+	}
+}
+
 func TestKafkaInit(t *testing.T) {
-	cont := endure.New(slog.LevelDebug)
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -364,7 +494,7 @@ func TestKafkaInit(t *testing.T) {
 }
 
 func TestKafkaDeclareCG(t *testing.T) {
-	cont := endure.New(slog.LevelError)
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -463,7 +593,7 @@ func TestKafkaDeclareCG(t *testing.T) {
 }
 
 func TestKafkaDeclare(t *testing.T) {
-	cont := endure.New(slog.LevelError)
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -562,7 +692,7 @@ func TestKafkaDeclare(t *testing.T) {
 }
 
 func TestKafkaJobsError(t *testing.T) {
-	cont := endure.New(slog.LevelDebug)
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -651,7 +781,7 @@ func TestKafkaJobsError(t *testing.T) {
 }
 
 func TestKafkaOTEL(t *testing.T) {
-	cont := endure.New(slog.LevelError)
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -791,7 +921,7 @@ func TestKafkaOTEL(t *testing.T) {
 }
 
 func TestKafkaPingFailed(t *testing.T) {
-	cont := endure.New(slog.LevelError)
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.3.0",
@@ -819,7 +949,7 @@ func TestKafkaPingFailed(t *testing.T) {
 }
 
 func TestKafkaPingOk(t *testing.T) {
-	cont := endure.New(slog.LevelError)
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.3.0",
