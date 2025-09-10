@@ -309,6 +309,16 @@ func (c *config) InitDefault(l *zap.Logger) ([]kgo.Opt, error) {
 				kgo.ConsumePartitions(partitions)
 			}
 		}
+
+		switch c.ConsumerOpts.PipeliningStrategy {
+		case SerialPipelining:
+		case FanOutPipelining:
+		case "":
+			c.ConsumerOpts.PipeliningStrategy = FanOutPipelining
+		default:
+			return nil, errors.Errorf("unknown pipelining strategy: %s", c.ConsumerOpts.PipeliningStrategy)
+		}
+
 	}
 
 	if c.Ping == nil {
