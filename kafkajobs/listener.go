@@ -142,18 +142,16 @@ func (d *Driver) listen() error {
 		case SerialPipelining:
 			fetchWg := &sync.WaitGroup{}
 			fetches.EachPartition(func(partition kgo.FetchTopicPartition) {
-				fetchWg.Add(1)
 				itemWg := &sync.WaitGroup{}
 
-				go func() {
-					defer fetchWg.Done()
+				fetchWg.Go(func() {
 					partition.EachRecord(func(r *kgo.Record) {
 						itemWg.Add(1)
 						item := fromConsumer(r, d.requeueCh, d.recordsCh, itemWg, &d.stopped)
 						d.insertTracedItem(item)
 						itemWg.Wait()
 					})
-				}()
+				})
 			})
 			fetchWg.Wait()
 		case FanOutPipelining:

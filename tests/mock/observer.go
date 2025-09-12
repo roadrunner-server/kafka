@@ -153,3 +153,47 @@ func (o *ObservedLogs) add(log LoggedEntry) {
 	o.logs = append(o.logs, log)
 	o.mu.Unlock()
 }
+
+// New creates a new Core that buffers logs in memory (without any encoding).
+// It's particularly useful in tests.
+func New(enab zapcore.LevelEnabler) (zapcore.Core, *ObservedLogs) {
+	ol := &ObservedLogs{}
+	return &contextObserver{
+		LevelEnabler: enab,
+		logs:         ol,
+	}, ol
+}
+
+type contextObserver struct {
+	zapcore.LevelEnabler
+	logs    *ObservedLogs
+	context []zapcore.Field
+}
+
+func (co *contextObserver) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	if co.Enabled(ent.Level) {
+		return ce.AddCore(ent, co)
+	}
+	return ce
+}
+
+func (co *contextObserver) With(fields []zapcore.Field) zapcore.Core {
+	return &contextObserver{
+		LevelEnabler: co.LevelEnabler,
+		logs:         co.logs,
+		context:      append(co.context[:len(co.context):len(co.context)], fields...),
+	}
+}
+
+func (co *contextObserver) Write(ent zapcore.Entry, fields []zapcore.Field) error {
+	all := make([]zapcore.Field, 0, len(fields)+len(co.context))
+	all = append(all, co.context...)
+	all = append(all, fields...)
+	co.logs.add(LoggedEntry{ent, all})
+
+	return nil
+}
+
+func (co *contextObserver) Sync() error {
+	return nil
+}

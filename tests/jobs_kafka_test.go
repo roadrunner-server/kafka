@@ -147,7 +147,7 @@ func TestKafkaInitCG(t *testing.T) {
 }
 
 func TestKafkaPQCG(t *testing.T) {
-	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelDebug)
 
 	cfg := &config.Plugin{
 		Version: "v2023.2.0",
@@ -365,7 +365,6 @@ func TestKafkaPipeliningStrategy(t *testing.T) {
 	stopCh <- struct{}{}
 	wg.Wait()
 
-	assert.Equal(t, 60, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
 	assert.Equal(t, 60, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
 
 	logs := oLogger.FilterMessageSnippet("php consumed:1:").All()
