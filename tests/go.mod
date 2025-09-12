@@ -10,17 +10,17 @@ require (
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.22.1
-	github.com/roadrunner-server/config/v5 v5.1.8
+	github.com/roadrunner-server/config/v5 v5.1.9
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/goridge/v3 v3.8.3
-	github.com/roadrunner-server/informer/v5 v5.1.8
-	github.com/roadrunner-server/jobs/v5 v5.1.8
-	github.com/roadrunner-server/kafka/v5 v5.2.4
-	github.com/roadrunner-server/logger/v5 v5.1.8
-	github.com/roadrunner-server/otel/v5 v5.3.0
-	github.com/roadrunner-server/resetter/v5 v5.1.8
-	github.com/roadrunner-server/rpc/v5 v5.1.8
-	github.com/roadrunner-server/server/v5 v5.2.9
+	github.com/roadrunner-server/informer/v5 v5.1.9
+	github.com/roadrunner-server/jobs/v5 v5.1.9
+	github.com/roadrunner-server/kafka/v5 v5.2.5
+	github.com/roadrunner-server/logger/v5 v5.1.9
+	github.com/roadrunner-server/otel/v5 v5.3.1
+	github.com/roadrunner-server/resetter/v5 v5.1.9
+	github.com/roadrunner-server/rpc/v5 v5.1.9
+	github.com/roadrunner-server/server/v5 v5.2.10
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
 )
@@ -88,7 +88,7 @@ require (
 	github.com/roadrunner-server/errors v1.4.1 // indirect
 	github.com/roadrunner-server/events v1.0.1 // indirect
 	github.com/roadrunner-server/pool v1.1.3 // indirect
-	github.com/roadrunner-server/priority_queue v1.0.5 // indirect
+	github.com/roadrunner-server/priority_queue v1.0.6 // indirect
 	github.com/roadrunner-server/tcplisten v1.5.2 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
@@ -107,7 +107,7 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
 	go.opentelemetry.io/contrib/propagators/jaeger v1.38.0 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect
