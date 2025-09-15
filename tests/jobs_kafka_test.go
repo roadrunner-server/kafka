@@ -36,8 +36,55 @@ import (
 	"go.uber.org/zap"
 )
 
+func serveTestContainer(t *testing.T, cont *endure.Endure) (stopperCh chan struct{}, wg *sync.WaitGroup) {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	wg = &sync.WaitGroup{}
+
+	stopperCh = make(chan struct{}, 1)
+
+	err := cont.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ch, err := cont.Serve()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wg.Go(func() {
+		for {
+			select {
+			case e := <-ch:
+				assert.Fail(t, "error", e.Error.Error())
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+			case <-sig:
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+				return
+			case <-stopperCh:
+				// timeout
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+				return
+			}
+		}
+	})
+
+	return stopperCh, wg
+}
+
 func TestKafkaInitCG(t *testing.T) {
-	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -57,50 +104,7 @@ func TestKafkaInitCG(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	err = cont.Init()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ch, err := cont.Serve()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	stopCh := make(chan struct{}, 1)
-
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case e := <-ch:
-				assert.Fail(t, "error", e.Error.Error())
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-			case <-sig:
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			case <-stopCh:
-				// timeout
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
+	stopCh, wg := serveTestContainer(t, cont)
 
 	time.Sleep(time.Second * 3)
 	conn, err := net.Dial("tcp", "127.0.0.1:6001")
@@ -167,50 +171,7 @@ func TestKafkaPQCG(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	err = cont.Init()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ch, err := cont.Serve()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	stopCh := make(chan struct{}, 1)
-
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case e := <-ch:
-				assert.Fail(t, "error", e.Error.Error())
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-			case <-sig:
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			case <-stopCh:
-				// timeout
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
+	stopCh, wg := serveTestContainer(t, cont)
 
 	time.Sleep(time.Second * 3)
 	conn, err := net.Dial("tcp", "127.0.0.1:6002")
@@ -258,7 +219,7 @@ func TestKafkaPQCG(t *testing.T) {
 }
 
 func TestKafkaPipeliningStrategy(t *testing.T) {
-	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2025.1.0",
@@ -278,50 +239,7 @@ func TestKafkaPipeliningStrategy(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	err = cont.Init()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ch, err := cont.Serve()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	stopCh := make(chan struct{}, 1)
-
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case e := <-ch:
-				assert.Fail(t, "error", e.Error.Error())
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-			case <-sig:
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			case <-stopCh:
-				// timeout
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
+	stopCh, wg := serveTestContainer(t, cont)
 
 	time.Sleep(time.Second * 3)
 	conn, err := net.Dial("tcp", "127.0.0.1:6001")
@@ -386,8 +304,128 @@ func TestKafkaPipeliningStrategy(t *testing.T) {
 	}
 }
 
+func TestKafkaSerialPipeliningWithRequeuing(t *testing.T) {
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(2*time.Second))
+
+	cfg := &config.Plugin{
+		Version: "v2025.1.0",
+		Path:    "configs/.rr-kafka-serial-consumption-requeue.yaml",
+	}
+
+	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	err := cont.RegisterAll(
+		cfg,
+		l,
+		&server.Plugin{},
+		&rpcPlugin.Plugin{},
+		&jobs.Plugin{},
+		&kp.Plugin{},
+		&resetter.Plugin{},
+		&informer.Plugin{},
+	)
+	assert.NoError(t, err)
+
+	stopCh, wg := serveTestContainer(t, cont)
+
+	time.Sleep(time.Second * 3)
+	conn, err := net.Dial("tcp", "127.0.0.1:6001")
+	defer func() { _ = conn.Close() }()
+	require.NoError(t, err)
+
+	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+	defer func() { _ = client.Close() }()
+
+	for i := 0; i < 10; i++ {
+		resp := &jobsProto.Empty{}
+		req := &jobsProto.PushRequest{Job: &jobsProto.Job{
+			Job:     uuid.NewString(),
+			Id:      uuid.NewString(),
+			Payload: []byte("ok"),
+			Headers: map[string]*jobsProto.HeaderValue{"attempts": {Value: []string{"3"}}},
+			Options: &jobsProto.Options{
+				Pipeline: "test",
+				Topic:    "serial-requeue-1",
+			},
+		}}
+		errCall := client.Call("jobs.Push", req, resp)
+		require.NoError(t, errCall)
+	}
+
+	time.Sleep(time.Second * 10)
+	t.Run("DestroyPipelines", helpers.DestroyPipelines("127.0.0.1:6001", "test"))
+
+	stopCh <- struct{}{}
+	wg.Wait()
+
+	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was pushed successfully").Len(), 10)
+	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was processed successfully").Len(), 10)
+}
+
+func TestKafkaSerialPipeliningRepeatedAcknowledgements(t *testing.T) {
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(2*time.Second))
+
+	cfg := &config.Plugin{
+		Version: "v2025.1.0",
+		Path:    "configs/.rr-kafka-serial-consumption-repeated-acknowledgement.yaml",
+	}
+
+	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	err := cont.RegisterAll(
+		cfg,
+		l,
+		&server.Plugin{},
+		&rpcPlugin.Plugin{},
+		&jobs.Plugin{},
+		&kp.Plugin{},
+		&resetter.Plugin{},
+		&informer.Plugin{},
+	)
+	assert.NoError(t, err)
+
+	stopCh, wg := serveTestContainer(t, cont)
+
+	time.Sleep(time.Second * 3)
+	conn, err := net.Dial("tcp", "127.0.0.1:6001")
+	defer func() { _ = conn.Close() }()
+	require.NoError(t, err)
+
+	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+	defer func() { _ = client.Close() }()
+
+	produceEvents := func() {
+		for i := 0; i < 50; i++ {
+			resp := &jobsProto.Empty{}
+			req := &jobsProto.PushRequest{Job: &jobsProto.Job{
+				Job:     uuid.NewString(),
+				Id:      uuid.NewString(),
+				Payload: []byte("ok"),
+				Options: &jobsProto.Options{
+					Pipeline: "test",
+					Topic:    "serial-repeats-1",
+				},
+			}}
+			errCall := client.Call("jobs.Push", req, resp)
+			require.NoError(t, errCall)
+		}
+	}
+
+	produceWg := &sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		produceWg.Go(produceEvents)
+	}
+
+	produceWg.Wait()
+	time.Sleep(time.Second)
+	t.Run("DestroyPipelines", helpers.DestroyPipelines("127.0.0.1:6001", "test"))
+
+	stopCh <- struct{}{}
+	wg.Wait()
+
+	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was pushed successfully").Len(), 500)
+}
+
 func TestKafkaInit(t *testing.T) {
-	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -407,50 +445,7 @@ func TestKafkaInit(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	err = cont.Init()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ch, err := cont.Serve()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	stopCh := make(chan struct{}, 1)
-
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case e := <-ch:
-				assert.Fail(t, "error", e.Error.Error())
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-			case <-sig:
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			case <-stopCh:
-				// timeout
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
+	stopCh, wg := serveTestContainer(t, cont)
 
 	time.Sleep(time.Second * 3)
 	conn, err := net.Dial("tcp", "127.0.0.1:6001")
@@ -493,7 +488,7 @@ func TestKafkaInit(t *testing.T) {
 }
 
 func TestKafkaDeclareCG(t *testing.T) {
-	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -513,50 +508,7 @@ func TestKafkaDeclareCG(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	err = cont.Init()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ch, err := cont.Serve()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	stopCh := make(chan struct{}, 1)
-
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case e := <-ch:
-				assert.Fail(t, "error", e.Error.Error())
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-			case <-sig:
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			case <-stopCh:
-				// timeout
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
+	stopCh, wg := serveTestContainer(t, cont)
 
 	time.Sleep(time.Second * 3)
 	t.Run("DeclarePipeline", declarePipeCG("test-33"))
@@ -592,7 +544,7 @@ func TestKafkaDeclareCG(t *testing.T) {
 }
 
 func TestKafkaDeclare(t *testing.T) {
-	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -612,50 +564,7 @@ func TestKafkaDeclare(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	err = cont.Init()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ch, err := cont.Serve()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	stopCh := make(chan struct{}, 1)
-
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case e := <-ch:
-				assert.Fail(t, "error", e.Error.Error())
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-			case <-sig:
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			case <-stopCh:
-				// timeout
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
+	stopCh, wg := serveTestContainer(t, cont)
 
 	time.Sleep(time.Second * 3)
 	t.Run("DeclarePipeline", declarePipe("test-22"))
@@ -691,7 +600,7 @@ func TestKafkaDeclare(t *testing.T) {
 }
 
 func TestKafkaJobsError(t *testing.T) {
-	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelDebug, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -711,50 +620,7 @@ func TestKafkaJobsError(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	err = cont.Init()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ch, err := cont.Serve()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	stopCh := make(chan struct{}, 1)
-
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case e := <-ch:
-				assert.Fail(t, "error", e.Error.Error())
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-			case <-sig:
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			case <-stopCh:
-				// timeout
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
+	stopCh, wg := serveTestContainer(t, cont)
 
 	time.Sleep(time.Second * 3)
 	t.Run("DeclarePipeline", declarePipe("test-3"))
@@ -780,7 +646,7 @@ func TestKafkaJobsError(t *testing.T) {
 }
 
 func TestKafkaOTEL(t *testing.T) {
-	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.1.0",
@@ -801,50 +667,7 @@ func TestKafkaOTEL(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	err = cont.Init()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ch, err := cont.Serve()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	stopCh := make(chan struct{}, 1)
-
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case e := <-ch:
-				assert.Fail(t, "error", e.Error.Error())
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-			case <-sig:
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			case <-stopCh:
-				// timeout
-				err = cont.Stop()
-				if err != nil {
-					assert.FailNow(t, "error", err.Error())
-				}
-				return
-			}
-		}
-	}()
+	stopCh, wg := serveTestContainer(t, cont)
 
 	time.Sleep(time.Second * 3)
 	conn, err := net.Dial("tcp", "127.0.0.1:6001")
@@ -920,7 +743,7 @@ func TestKafkaOTEL(t *testing.T) {
 }
 
 func TestKafkaPingFailed(t *testing.T) {
-	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.3.0",
@@ -948,7 +771,7 @@ func TestKafkaPingFailed(t *testing.T) {
 }
 
 func TestKafkaPingOk(t *testing.T) {
-	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(time.Second))
+	cont := endure.New(slog.LevelError, endure.GracefulShutdownTimeout(2*time.Second))
 
 	cfg := &config.Plugin{
 		Version: "v2023.3.0",

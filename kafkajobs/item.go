@@ -118,9 +118,7 @@ func (i *Item) Ack() error {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
 
-	if i.doneWg != nil {
-		i.doneWg.Done()
-	}
+	i.done()
 
 	select {
 	case i.commitsCh <- i.record:
@@ -139,9 +137,7 @@ func (i *Item) NackWithOptions(requeue bool, _ int) error {
 		return errors.Str("failed to NackWithOptions the JOB, the pipeline is probably stopped")
 	}
 
-	if i.doneWg != nil {
-		i.doneWg.Done()
-	}
+	i.done()
 
 	if requeue {
 		err := i.Requeue(nil, 0)
@@ -202,6 +198,13 @@ func (i *Item) Requeue(headers map[string][]string, _ int) error {
 // Respond is not used and presented to satisfy the Job interface
 func (i *Item) Respond(_ []byte, _ string) error {
 	return nil
+}
+
+func (i *Item) done() {
+	if i.doneWg != nil {
+		i.doneWg.Done()
+		i.doneWg = nil
+	}
 }
 
 func fromJob(job jobs.Message) *Item {
