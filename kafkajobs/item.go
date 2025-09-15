@@ -2,6 +2,7 @@ package kafkajobs
 
 import (
 	"maps"
+	"sync"
 	"sync/atomic"
 
 	"github.com/goccy/go-json"
@@ -34,6 +35,7 @@ type Item struct {
 	commitsCh chan *kgo.Record
 	requeueCh chan *Item
 	record    *kgo.Record
+	doneWg    *sync.WaitGroup
 }
 
 // Options carry information about how to handle a given job.
@@ -115,6 +117,9 @@ func (i *Item) Ack() error {
 	if atomic.LoadUint64(i.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
+
+	i.done()
+
 	select {
 	case i.commitsCh <- i.record:
 		return nil
@@ -124,13 +129,15 @@ func (i *Item) Ack() error {
 }
 
 func (i *Item) Nack() error {
-	return nil
+	return i.NackWithOptions(false, 0)
 }
 
 func (i *Item) NackWithOptions(requeue bool, _ int) error {
 	if atomic.LoadUint64(i.stopped) == 1 {
 		return errors.Str("failed to NackWithOptions the JOB, the pipeline is probably stopped")
 	}
+
+	i.done()
 
 	if requeue {
 		err := i.Requeue(nil, 0)
@@ -156,6 +163,9 @@ func (i *Item) Copy() *Item {
 		Metadata:  i.Options.Metadata,
 		Offset:    i.Options.Offset,
 	}
+
+	// Requeued items must get a fresh gating WaitGroup assigned by the caller.
+	item.doneWg = nil
 
 	return item
 }
@@ -188,6 +198,13 @@ func (i *Item) Requeue(headers map[string][]string, _ int) error {
 // Respond is not used and presented to satisfy the Job interface
 func (i *Item) Respond(_ []byte, _ string) error {
 	return nil
+}
+
+func (i *Item) done() {
+	if i.doneWg != nil {
+		i.doneWg.Done()
+		i.doneWg = nil
+	}
 }
 
 func fromJob(job jobs.Message) *Item {

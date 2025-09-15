@@ -17,7 +17,17 @@ $consumer = new Spiral\RoadRunner\Jobs\Consumer();
 
 while ($task = $consumer->waitTask()) {
     try {
-	    sleep(15);
+        for ($i = 0; $i < 5; $i++) {
+            $val = random_int(0, 2);
+            if ($val % 3 == 0) {
+                $task->complete();
+            } else if ($val % 3 == 1) {
+                $task->fail("failed");
+            } else {
+                $rr->error("error");
+            }
+        }
+
         $task->complete();
     } catch (\Throwable $e) {
         $task->error((string)$e);
