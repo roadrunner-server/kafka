@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 	"sync"
 	"sync/atomic"
 
@@ -13,6 +11,8 @@ import (
 	"github.com/roadrunner-server/events"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
 
@@ -26,6 +26,12 @@ func (d *Driver) listen() error {
 	// protect context against context update
 	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
 	d.mu.Unlock()
+
+	// only for serial pipelining
+	pipelineWg := &sync.WaitGroup{}
+	partitionWgPool := &sync.Pool{New: func() interface{} {
+		return &sync.WaitGroup{}
+	}}
 
 	defer func() {
 		d.log.Debug("kafka listener stopped")
@@ -140,20 +146,20 @@ func (d *Driver) listen() error {
 
 		switch d.cfg.ConsumerOpts.PipeliningStrategy {
 		case SerialPipelining:
-			fetchWg := &sync.WaitGroup{}
 			fetches.EachPartition(func(partition kgo.FetchTopicPartition) {
-				itemWg := &sync.WaitGroup{}
+				itemWg := partitionWgPool.Get().(*sync.WaitGroup)
 
-				fetchWg.Go(func() {
+				pipelineWg.Go(func() {
 					partition.EachRecord(func(r *kgo.Record) {
 						itemWg.Add(1)
 						item := fromConsumer(r, d.requeueCh, d.recordsCh, itemWg, &d.stopped)
 						d.insertTracedItem(item)
 						itemWg.Wait()
+						partitionWgPool.Put(itemWg)
 					})
 				})
 			})
-			fetchWg.Wait()
+			pipelineWg.Wait()
 		case FanOutPipelining:
 			fetches.EachRecord(func(r *kgo.Record) {
 				item := fromConsumer(r, d.requeueCh, d.recordsCh, nil, &d.stopped)

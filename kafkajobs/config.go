@@ -318,7 +318,6 @@ func (c *config) InitDefault(l *zap.Logger) ([]kgo.Opt, error) {
 		default:
 			return nil, errors.Errorf("unknown pipelining strategy: %s", c.ConsumerOpts.PipeliningStrategy)
 		}
-
 	}
 
 	if c.Ping == nil {
