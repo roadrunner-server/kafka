@@ -34,10 +34,15 @@ func (l *logger) Level() kgo.LogLevel {
 }
 
 func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
-	zf := make([]zap.Field, 0, len(keyvals))
+	var zf []zapcore.Field
 
-	for i := range keyvals {
-		zf = append(zf, zap.Any("kgo_driver", keyvals[i]))
+	if zfTmp, ok := tryFetchKeyValPairs(keyvals); ok {
+		zf = zfTmp
+	} else {
+		zf = make([]zap.Field, 0, len(keyvals))
+		for i := range keyvals {
+			zf = append(zf, zap.Any("kgo_driver", keyvals[i]))
+		}
 	}
 
 	switch level {
@@ -52,4 +57,23 @@ func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 	default:
 		l.l.Debug(msg, zf...)
 	}
+}
+
+// tryFetchKeyValPairs
+func tryFetchKeyValPairs(keyvals []any) ([]zapcore.Field, bool) {
+	inLen := len(keyvals)
+	if inLen == 0 || inLen%2 != 0 {
+		return nil, false
+	}
+
+	result := make([]zap.Field, 0, inLen/2)
+	for i := 0; i < inLen; i += 2 {
+		key, ok := keyvals[i].(string)
+		if !ok {
+			return nil, false
+		}
+		result = append(result, zap.Any(key, keyvals[i+1]))
+	}
+
+	return result, true
 }
