@@ -1,6 +1,8 @@
 package kafkajobs
 
 import (
+	"fmt"
+
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -34,16 +36,7 @@ func (l *logger) Level() kgo.LogLevel {
 }
 
 func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
-	var zf []zapcore.Field
-
-	if zfTmp, ok := tryFetchKeyValPairs(keyvals); ok {
-		zf = zfTmp
-	} else {
-		zf = make([]zap.Field, 0, len(keyvals))
-		for i := range keyvals {
-			zf = append(zf, zap.Any("kgo_driver", keyvals[i]))
-		}
-	}
+	zf := toKeyValuePair(keyvals)
 
 	switch level {
 	case kgo.LogLevelDebug, kgo.LogLevelNone:
@@ -59,21 +52,39 @@ func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 	}
 }
 
-// tryFetchKeyValPairs
-func tryFetchKeyValPairs(keyvals []any) ([]zapcore.Field, bool) {
+func toKeyValuePair(keyvals []any) []zapcore.Field {
 	inLen := len(keyvals)
-	if inLen == 0 || inLen%2 != 0 {
-		return nil, false
+	if inLen == 0 {
+		return nil
 	}
 
-	result := make([]zap.Field, 0, inLen/2)
-	for i := 0; i < inLen; i += 2 {
-		key, ok := keyvals[i].(string)
-		if !ok {
-			return nil, false
+	if inLen%2 == 0 {
+		// Make sure we have even number of elements and every odd element is a string.
+		isKVP := true
+		keys := make([]string, 0, inLen/2)
+		for i := 0; i < inLen; i += 2 {
+			if key, ok := keyvals[i].(string); ok {
+				keys = append(keys, key)
+			} else {
+				isKVP = false
+				break
+			}
 		}
-		result = append(result, zap.Any(key, keyvals[i+1]))
+
+		// positive scenario
+		if isKVP {
+			result := make([]zap.Field, inLen/2)
+			for i, key := range keys {
+				result[i] = zap.Any(key, keyvals[i*2+1])
+			}
+			return result
+		}
 	}
 
-	return result, true
+	// This should never happen.
+	result := make([]zap.Field, inLen)
+	for i, val := range keyvals {
+		result[i] = zap.Any(fmt.Sprintf("val%d", i), val)
+	}
+	return result
 }
