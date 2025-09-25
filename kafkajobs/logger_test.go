@@ -19,7 +19,7 @@ func TestLogger_Log(t *testing.T) {
 		expected []zapcore.Field
 	}{
 		{
-			name:     "keycals is nil",
+			name:     "keyvals is nil",
 			keyvals:  nil,
 			expected: []zapcore.Field{},
 		},
