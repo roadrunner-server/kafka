@@ -81,7 +81,7 @@ func toKeyValuePair(keyvals []any) []zapcore.Field {
 		}
 	}
 
-	// This should never happen.
+	// Fallback for odd number of keyvals or non-string keys.
 	result := make([]zap.Field, inLen)
 	for i, val := range keyvals {
 		result[i] = zap.Any(fmt.Sprintf("val%d", i), val)
