@@ -2,7 +2,7 @@ module github.com/roadrunner-server/kafka/v5
 
 go 1.25
 
-toolchain go1.25.1
+toolchain go1.25.2
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.31.12
@@ -17,7 +17,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.38.0
 	go.opentelemetry.io/otel/trace v1.38.0
 	go.uber.org/zap v1.27.0
-	google.golang.org/genproto v0.0.0-20251002232023-7c0ddcbb5797
+	google.golang.org/genproto v0.0.0-20251006185510-65f7160b3a87
 )
 
 require (
