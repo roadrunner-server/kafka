@@ -56,10 +56,9 @@ func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 }
 
 func toKeyValuePair(keyvals []any) []zapcore.Field {
-	inLen := len(keyvals)
 
 	// This should never happen.
-	if inLen%2 != 0 {
+	if len(keyvals)%2 != 0 {
 		keyvals = append(keyvals, "<missing>")
 	}
 
