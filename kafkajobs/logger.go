@@ -36,7 +36,10 @@ func (l *logger) Level() kgo.LogLevel {
 }
 
 func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
-	zf := toKeyValuePair(keyvals)
+	var zf []zapcore.Field
+	if len(keyvals) != 0 {
+		zf = toKeyValuePair(keyvals)
+	}
 
 	switch level {
 	case kgo.LogLevelDebug, kgo.LogLevelNone:
@@ -54,9 +57,6 @@ func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 
 func toKeyValuePair(keyvals []any) []zapcore.Field {
 	inLen := len(keyvals)
-	if inLen == 0 {
-		return nil
-	}
 
 	// This should never happen.
 	if inLen%2 != 0 {
