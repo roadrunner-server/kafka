@@ -36,17 +36,15 @@ func TestLogger_Log(t *testing.T) {
 			name:    "not even",
 			keyvals: []any{"one message"},
 			expected: []zapcore.Field{
-				zap.String("val0", "one message"),
+				zap.String("one message", "<missing>"),
 			},
 		},
 		{
 			name:    "no strings",
 			keyvals: []any{0, "val1", 2, "val3"},
 			expected: []zapcore.Field{
-				zap.Int("val0", 0),
-				zap.String("val1", "val1"),
-				zap.Int("val2", 2),
-				zap.String("val3", "val3"),
+				zap.String("0", "val1"),
+				zap.String("2", "val3"),
 			},
 		},
 	}

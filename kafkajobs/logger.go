@@ -58,33 +58,25 @@ func toKeyValuePair(keyvals []any) []zapcore.Field {
 		return nil
 	}
 
-	if inLen%2 == 0 {
-		// Make sure we have even number of elements and every odd element is a string.
-		isKVP := true
-		keys := make([]string, 0, inLen/2)
-		for i := 0; i < inLen; i += 2 {
-			if key, ok := keyvals[i].(string); ok {
-				keys = append(keys, key)
-			} else {
-				isKVP = false
-				break
-			}
-		}
-
-		// positive scenario
-		if isKVP {
-			result := make([]zap.Field, inLen/2)
-			for i, key := range keys {
-				result[i] = zap.Any(key, keyvals[i*2+1])
-			}
-			return result
-		}
-	}
-
 	// This should never happen.
-	result := make([]zap.Field, inLen)
-	for i, val := range keyvals {
-		result[i] = zap.Any(fmt.Sprintf("val%d", i), val)
+	if inLen%2 != 0 {
+		keyvals = append(keyvals, "<missing>")
 	}
+
+	result := make([]zap.Field, 0, len(keyvals)/2)
+	for i := 0; i < len(keyvals); i += 2 {
+		keyAny := keyvals[i]
+		val := keyvals[i+1]
+
+		// By convention, keys are expected to be strings,
+		// but as a fallback we convert them using fmt.Sprint.
+		key, ok := keyAny.(string)
+		if !ok {
+			key = fmt.Sprint(keyAny)
+		}
+
+		result = append(result, zap.Any(key, val))
+	}
+
 	return result
 }
