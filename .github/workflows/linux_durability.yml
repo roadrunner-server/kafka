@@ -33,7 +33,7 @@ jobs:
           extensions: sockets
 
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get Composer Cache Directory
         id: composer-cache
@@ -68,7 +68,7 @@ jobs:
           go test -timeout 20m -v -race -cover -tags=debug -failfast -coverpkg=$(cat pkgs.txt) -coverprofile=./coverage-ci/kafka_dur.out -covermode=atomic jobs_kafka_durability_test.go
 
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage
           path: ./tests/coverage-ci/kafka_dur.out
@@ -82,7 +82,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Download code coverage results
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
       - run: |
           echo 'mode: atomic' > summary.txt
           tail -q -n +2 *.out >> summary.txt
