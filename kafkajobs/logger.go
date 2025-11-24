@@ -1,6 +1,8 @@
 package kafkajobs
 
 import (
+	"fmt"
+
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -34,10 +36,9 @@ func (l *logger) Level() kgo.LogLevel {
 }
 
 func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
-	zf := make([]zap.Field, 0, len(keyvals))
-
-	for i := range keyvals {
-		zf = append(zf, zap.Any("kgo_driver", keyvals[i]))
+	var zf []zapcore.Field
+	if len(keyvals) != 0 {
+		zf = toKeyValuePair(keyvals)
 	}
 
 	switch level {
@@ -52,4 +53,28 @@ func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 	default:
 		l.l.Debug(msg, zf...)
 	}
+}
+
+func toKeyValuePair(keyvals []any) []zapcore.Field {
+	// This should never happen.
+	if len(keyvals)%2 != 0 {
+		keyvals = append(keyvals, "<missing>")
+	}
+
+	result := make([]zap.Field, 0, len(keyvals)/2)
+	for i := 0; i < len(keyvals); i += 2 {
+		keyAny := keyvals[i]
+		val := keyvals[i+1]
+
+		// By convention, keys are expected to be strings,
+		// but as a fallback we convert them using fmt.Sprint.
+		key, ok := keyAny.(string)
+		if !ok {
+			key = fmt.Sprint(keyAny)
+		}
+
+		result = append(result, zap.Any(key, val))
+	}
+
+	return result
 }
