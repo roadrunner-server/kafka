@@ -82,7 +82,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Download code coverage results
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
       - run: |
           echo 'mode: atomic' > summary.txt
           tail -q -n +2 *.out >> summary.txt
