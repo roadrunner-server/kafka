@@ -2,7 +2,7 @@ module github.com/roadrunner-server/kafka/v5
 
 go 1.25
 
-toolchain go1.25.5
+toolchain go1.25.6
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
@@ -18,7 +18,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 	go.uber.org/zap v1.27.1
-	google.golang.org/genproto v0.0.0-20260112192933-99fd39fd28a9
+	google.golang.org/genproto v0.0.0-20260114163908-3f89685c29c3
 )
 
 require (
@@ -40,8 +40,8 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/klauspost/compress v1.18.2 // indirect
-	github.com/pierrec/lz4/v4 v4.1.23 // indirect
+	github.com/klauspost/compress v1.18.3 // indirect
+	github.com/pierrec/lz4/v4 v4.1.24 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.12.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
