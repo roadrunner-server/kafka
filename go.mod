@@ -1,6 +1,6 @@
 module github.com/roadrunner-server/kafka/v5
 
-go 1.25
+go 1.26
 
 toolchain go1.26.0
 
