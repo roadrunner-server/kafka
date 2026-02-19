@@ -12,7 +12,7 @@ require (
 	github.com/roadrunner-server/errors v1.4.1
 	github.com/roadrunner-server/events v1.0.1
 	github.com/stretchr/testify v1.11.1
-	github.com/twmb/franz-go v1.20.6
+	github.com/twmb/franz-go v1.20.7
 	go.opentelemetry.io/contrib/propagators/jaeger v1.40.0
 	go.opentelemetry.io/otel v1.40.0
 	go.opentelemetry.io/otel/sdk v1.40.0
