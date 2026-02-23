@@ -10,7 +10,7 @@ import (
 	"net/rpc"
 	"os"
 	"os/signal"
-	"sort"
+	"slices"
 	"sync"
 	"syscall"
 	"testing"
@@ -234,7 +234,7 @@ func TestKafkaPQCG(t *testing.T) {
 
 	wgg := &sync.WaitGroup{}
 	wgg.Add(100)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		go func() {
 			defer wgg.Done()
 			resp := &jobsProto.Empty{}
@@ -343,7 +343,7 @@ func TestKafkaInit(t *testing.T) {
 
 	wgg := &sync.WaitGroup{}
 	wgg.Add(1000)
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		go func() {
 			defer wgg.Done()
 			er := &jobsProto.Empty{}
@@ -439,14 +439,14 @@ func TestKafkaDeclareCG(t *testing.T) {
 
 	t.Run("PushPipeline", helpers.PushToPipe("test-33", false, "127.0.0.1:6001"))
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		t.Run("PushPipeline", helpers.PushToPipe("test-33", false, "127.0.0.1:6001"))
 	}
 
 	time.Sleep(time.Second * 5)
 	t.Run("PausePipeline", helpers.PausePipelines("127.0.0.1:6001", "test-33"))
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		t.Run("PushPipeline", helpers.PushToPipe("test-33", false, "127.0.0.1:6001"))
 	}
 
@@ -538,14 +538,14 @@ func TestKafkaDeclare(t *testing.T) {
 
 	t.Run("PushPipeline", helpers.PushToPipe("test-22", false, "127.0.0.1:6001"))
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		t.Run("PushPipeline", helpers.PushToPipe("test-22", false, "127.0.0.1:6001"))
 	}
 
 	time.Sleep(time.Second * 5)
 	t.Run("PausePipeline", helpers.PausePipelines("127.0.0.1:6001", "test-22"))
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		t.Run("PushPipeline", helpers.PushToPipe("test-22", false, "127.0.0.1:6001"))
 	}
 
@@ -742,7 +742,7 @@ func TestKafkaOTEL(t *testing.T) {
 
 	wgg := &sync.WaitGroup{}
 	wgg.Add(3)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		go func() {
 			defer wgg.Done()
 			er := &jobsProto.Empty{}
@@ -769,9 +769,7 @@ func TestKafkaOTEL(t *testing.T) {
 	err = json.Unmarshal(buf, &spans)
 	assert.NoError(t, err)
 
-	sort.Slice(spans, func(i, j int) bool {
-		return spans[i] < spans[j]
-	})
+	slices.Sort(spans)
 
 	expected := []string{
 		"destroy_pipeline",
