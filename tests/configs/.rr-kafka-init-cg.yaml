@@ -4,7 +4,6 @@ rpc:
 server:
   command: "php php_test_files/jobs/jobs_ok.php"
   relay: "pipes"
-  relay_timeout: "20s"
 logs:
   level: debug
   encoding: console
