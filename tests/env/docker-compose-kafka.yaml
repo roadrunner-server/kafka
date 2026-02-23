@@ -1,39 +1,23 @@
-# sync with:
-# https://developer.confluent.io/get-started/go/#kafka-setup
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    hostname: zookeeper
-    container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-
   broker:
-    image: confluentinc/cp-kafka:7.8.2
+    image: confluentinc/cp-kafka:8.1.1
     container_name: broker
     ports:
       - "9092:9092"
-      - "9093:9093"
-    depends_on:
-      - zookeeper
     environment:
-      KAFKA_BROKER_ID: 1
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LISTENERS: 'PLAINTEXT://broker:9092,CONTROLLER://broker:29093,PLAINTEXT_INTERNAL://broker:29092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://broker:29092
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
       AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,SSL:SSL
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://broker:29092,SSL://localhost:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_SSL_KEYSTORE_FILENAME: test-certs/kafka.keystore.pkcs12
-      KAFKA_SSL_KEYSTORE_CREDENTIALS: test-certs/kafka_keystore_creds
-      KAFKA_SSL_KEY_CREDENTIALS: test-certs/kafka_keystore_creds
-      KAFKA_SSL_TRUSTSTORE_FILENAME: test-certs/kafka.truststore.pkcs12
-      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: test-certs/kafka_keystore_creds
-      KAFKA_SSL_CLIENT_AUTH: "required"
-    volumes:
-      - ./../test-certs:/etc/kafka/secrets/test-certs:ro
 
   collector:
     image: otel/opentelemetry-collector-contrib

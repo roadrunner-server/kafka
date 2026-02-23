@@ -58,32 +58,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 		},
 	}
 
-	zk, err := cli.ImagePull(ctx, "confluentinc/cp-zookeeper:latest", image.PullOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		_ = zk.Close()
-	}()
-
-	_, _ = io.Copy(os.Stdout, zk)
-
-	zkc, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: "confluentinc/cp-zookeeper",
-		Tty:   false,
-		Env:   []string{"ZOOKEEPER_CLIENT_PORT=2181", "ZOOKEEPER_TICK_TIME=2000"},
-	}, &container.HostConfig{}, netConf, nil, "zookeeper")
-	if err != nil {
-		panic(err)
-	}
-
-	err = cli.ContainerStart(ctx, zkc.ID, container.StartOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	cpKafka, err := cli.ImagePull(ctx, "confluentinc/cp-kafka:7.8.2", image.PullOptions{})
+	cpKafka, err := cli.ImagePull(ctx, "confluentinc/cp-kafka:8.1.1", image.PullOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -95,15 +70,19 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 	_, _ = io.Copy(os.Stdout, cpKafka)
 
 	k, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: "confluentinc/cp-kafka:7.8.2",
+		Image: "confluentinc/cp-kafka:8.1.1",
 		Tty:   false,
 		Env: []string{
-			"KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181",
-			"KAFKA_BROKER_ID=1",
-			"AUTO_CREATE_TOPICS_ENABLE=true",
-			"KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181",
-			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT",
+			"KAFKA_NODE_ID=1",
+			"KAFKA_PROCESS_ROLES=broker,controller",
+			"KAFKA_CONTROLLER_QUORUM_VOTERS=1@broker:29093",
+			"KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER",
+			"KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://broker:29093,PLAINTEXT_INTERNAL://broker:29092",
+			"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT",
 			"KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092,PLAINTEXT_INTERNAL://broker:29092",
+			"KAFKA_LOG_DIRS=/tmp/kraft-combined-logs",
+			"CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk",
+			"AUTO_CREATE_TOPICS_ENABLE=true",
 			"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1",
 			"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1",
 			"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1",
@@ -115,7 +94,6 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 				nat.PortBinding{HostIP: "127.0.0.1", HostPort: "9092"},
 			},
 		},
-		//Links:         []string{fmt.Sprintf("%s:alias", zkc.ID)},
 		RestartPolicy: container.RestartPolicy{Name: "always"},
 	}, netConf, nil, "broker")
 	if err != nil {
@@ -150,14 +128,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 				bg := context.Background()
 
 				timeout := 10
-				err2 := cli.ContainerStop(bg, zkc.ID, container.StopOptions{
-					Signal:  "SIGKILL",
-					Timeout: &timeout,
-				})
-				if err2 != nil {
-					panic(err2)
-				}
-				err2 = cli.ContainerStop(bg, k.ID, container.StopOptions{
+				err2 := cli.ContainerStop(bg, k.ID, container.StopOptions{
 					Signal:  "SIGKILL",
 					Timeout: &timeout,
 				})
@@ -166,14 +137,6 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 				}
 
 				err2 = cli.ContainerRemove(bg, k.ID, container.RemoveOptions{
-					RemoveVolumes: true,
-					Force:         true,
-				})
-				if err2 != nil {
-					panic(err2)
-				}
-
-				err2 = cli.ContainerRemove(bg, zkc.ID, container.RemoveOptions{
 					RemoveVolumes: true,
 					Force:         true,
 				})

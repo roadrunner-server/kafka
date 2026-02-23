@@ -27,6 +27,9 @@ func (d *Driver) listen() error {
 	d.mu.Unlock()
 
 	defer func() {
+		if d.cfg.GroupOpts != nil {
+			d.kafkaClient.AllowRebalance()
+		}
 		d.log.Debug("kafka listener stopped")
 	}()
 
@@ -147,10 +150,6 @@ func (d *Driver) listen() error {
 
 			span.End()
 		})
-
-		if d.cfg.GroupOpts != nil {
-			d.kafkaClient.AllowRebalance()
-		}
 	}
 }
 

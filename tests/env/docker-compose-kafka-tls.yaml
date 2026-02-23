@@ -1,0 +1,16 @@
+services:
+  broker:
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_LISTENERS: 'PLAINTEXT://broker:9092,CONTROLLER://broker:29093,PLAINTEXT_INTERNAL://broker:29092,SSL://broker:9093'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,SSL:SSL
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://broker:29092,SSL://localhost:9093
+      KAFKA_SSL_KEYSTORE_FILENAME: test-certs/kafka.keystore.pkcs12
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: test-certs/kafka_keystore_creds
+      KAFKA_SSL_KEY_CREDENTIALS: test-certs/kafka_keystore_creds
+      KAFKA_SSL_TRUSTSTORE_FILENAME: test-certs/kafka.truststore.pkcs12
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: test-certs/kafka_keystore_creds
+      KAFKA_SSL_CLIENT_AUTH: "required"
+    volumes:
+      - ./../test-certs:/etc/kafka/secrets/test-certs:ro

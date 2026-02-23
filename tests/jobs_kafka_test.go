@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -103,7 +104,8 @@ func TestKafkaInitCG(t *testing.T) {
 	}()
 
 	time.Sleep(time.Second * 3)
-	conn, err := net.Dial("tcp", "127.0.0.1:6001")
+	var d net.Dialer
+	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
 	require.NoError(t, err)
 
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
@@ -126,7 +128,7 @@ func TestKafkaInitCG(t *testing.T) {
 
 	wgg := &sync.WaitGroup{}
 	wgg.Add(100)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		go func() {
 			defer wgg.Done()
 			resp := &jobsProto.Empty{}

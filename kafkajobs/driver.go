@@ -119,7 +119,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		stopped:   0,
 		recordsCh: make(chan *kgo.Record, 100),
 		requeueCh: make(chan *Item, 10),
-		delayed:   toPtr(int64(0)),
+		delayed:   new(int64(0)),
 		cfg:       &conf,
 	}
 
@@ -233,7 +233,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 		stopped:   0,
 		recordsCh: make(chan *kgo.Record, 100),
 		requeueCh: make(chan *Item, 10),
-		delayed:   toPtr(int64(0)),
+		delayed:   new(int64(0)),
 		cfg:       &conf,
 	}
 
@@ -409,15 +409,7 @@ func (d *Driver) Stop(ctx context.Context) error {
 		d.kafkaCancelCtx()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	err := d.kafkaClient.LeaveGroupContext(ctx)
-	if err != nil {
-		d.log.Error("failed to leave the group", zap.Error(err))
-	}
-
-	d.kafkaClient.Close()
+	d.kafkaClient.CloseAllowingRebalance()
 
 	// properly check for the listeners
 	pipe := *d.pipeline.Load()
@@ -545,8 +537,4 @@ func strToBytes(data string) []byte {
 	}
 
 	return unsafe.Slice(unsafe.StringData(data), len(data))
-}
-
-func toPtr[T any](v T) *T {
-	return &v
 }
