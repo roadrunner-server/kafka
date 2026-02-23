@@ -24,7 +24,6 @@ import (
 	"github.com/roadrunner-server/informer/v5"
 	"github.com/roadrunner-server/jobs/v5"
 	"github.com/roadrunner-server/kafka/v5"
-	"github.com/roadrunner-server/logger/v5"
 	"github.com/roadrunner-server/resetter/v5"
 	"github.com/roadrunner-server/server/v5"
 	"go.uber.org/zap"
@@ -47,6 +46,7 @@ func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
 
 	// Create a network
 	networkName := "rr-e2e-tests"
+	_ = cli.NetworkRemove(ctx, networkName)
 	_, err = cli.NetworkCreate(ctx, networkName, network.CreateOptions{})
 	if err != nil {
 		return nil, err
@@ -242,7 +242,7 @@ func TestDurabilityKafka(t *testing.T) {
 
 	t.Run("PushPipelineWhileRedialing-1", helpers.PushToPipe("test-1", false, "127.0.0.1:6001"))
 	t.Run("PushPipelineWhileRedialing-2", helpers.PushToPipe("test-2", false, "127.0.0.1:6001"))
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 20)
 	t.Run("DestroyPipelines", helpers.DestroyPipelines("127.0.0.1:6001", "test-1", "test-2"))
 
 	stopCh <- struct{}{}
@@ -281,7 +281,6 @@ func TestDurabilityKafkaCG(t *testing.T) {
 		cfg,
 		&server.Plugin{},
 		&rpcPlugin.Plugin{},
-		&logger.Plugin{},
 		&jobs.Plugin{},
 		&resetter.Plugin{},
 		&informer.Plugin{},
@@ -347,7 +346,7 @@ func TestDurabilityKafkaCG(t *testing.T) {
 	t.Run("PushPipelineWhileRedialing-1", helpers.PushToPipe("test-11", false, "127.0.0.1:6001"))
 	t.Run("PushPipelineWhileRedialing-2", helpers.PushToPipe("test-22", false, "127.0.0.1:6001"))
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 20)
 	t.Run("DestroyPipelines", helpers.DestroyPipelines("127.0.0.1:6001", "test-11", "test-22"))
 
 	stopCh <- struct{}{}

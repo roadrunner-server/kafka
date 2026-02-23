@@ -150,6 +150,10 @@ func (d *Driver) listen() error {
 
 			span.End()
 		})
+
+		if d.cfg.GroupOpts != nil {
+			d.kafkaClient.AllowRebalance()
+		}
 	}
 }
 

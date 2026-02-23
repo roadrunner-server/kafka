@@ -215,7 +215,8 @@ func TestKafkaPQCG(t *testing.T) {
 	}()
 
 	time.Sleep(time.Second * 3)
-	conn, err := net.Dial("tcp", "127.0.0.1:6002")
+	var d net.Dialer
+	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6002")
 	require.NoError(t, err)
 
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
@@ -326,7 +327,8 @@ func TestKafkaInit(t *testing.T) {
 	}()
 
 	time.Sleep(time.Second * 3)
-	conn, err := net.Dial("tcp", "127.0.0.1:6001")
+	var d net.Dialer
+	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
 	require.NoError(t, err)
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
 	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
@@ -720,7 +722,8 @@ func TestKafkaOTEL(t *testing.T) {
 	}()
 
 	time.Sleep(time.Second * 3)
-	conn, err := net.Dial("tcp", "127.0.0.1:6001")
+	var d net.Dialer
+	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
 	require.NoError(t, err)
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
 	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
@@ -853,7 +856,8 @@ func TestKafkaPingOk(t *testing.T) {
 
 func declarePipe(topic string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", "127.0.0.1:6001")
+		var d net.Dialer
+		conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
 		assert.NoError(t, err)
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
 
@@ -885,7 +889,8 @@ func declarePipe(topic string) func(t *testing.T) {
 
 func declarePipeCG(topic string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", "127.0.0.1:6001")
+		var d net.Dialer
+		conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
 		assert.NoError(t, err)
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
 
