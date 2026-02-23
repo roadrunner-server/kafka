@@ -81,12 +81,26 @@ jobs:
 
     timeout-minutes: 60
     steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
       - name: Download code coverage results
         uses: actions/download-artifact@v7
+        with:
+          name: coverage
+          path: coverage
+
       - run: |
           echo 'mode: atomic' > summary.txt
-          tail -q -n +2 *.out >> summary.txt
-          sed -i '2,${/roadrunner/!d}' summary.txt
+          tail -q -n +2 coverage/*.out >> summary.txt
+          awk '
+            NR == 1 { print; next }
+            /^github\.com\/roadrunner-server\/kafka\/v5\// {
+              sub(/^github\.com\/roadrunner-server\/kafka\/v5\//, "", $0)
+              print
+            }
+          ' summary.txt > summary.filtered.txt
+          mv summary.filtered.txt summary.txt
 
       - name: upload to codecov
         uses: codecov/codecov-action@v5 # Docs: <https://github.com/codecov/codecov-action>

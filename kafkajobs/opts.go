@@ -81,15 +81,15 @@ type SASL struct {
 
 	// plain + SHA
 	Username string `mapstructure:"username" json:"username"`
-	Password string `mapstructure:"password" json:"password"`
+	Password string `mapstructure:"password" json:"password"` //nolint:gosec
 	Zid      string `mapstructure:"zid" json:"zid"`
 	Nonce    []byte `mapstructure:"nonce" json:"nonce"`
 	IsToken  bool   `mapstructure:"is_token" json:"is_token"`
 
 	// aws_msk_iam
-	AccessKey    string `mapstructure:"access_key" json:"access_key"`
+	AccessKey    string `mapstructure:"access_key" json:"access_key"` //nolint:gosec
 	SecretKey    string `mapstructure:"secret_key" json:"secret_key"`
-	SessionToken string `mapstructure:"session_token" json:"session_token"`
+	SessionToken string `mapstructure:"session_token" json:"session_token"` //nolint:gosec
 	UserAgent    string `mapstructure:"user_agent" json:"user_agent"`
 }
 
