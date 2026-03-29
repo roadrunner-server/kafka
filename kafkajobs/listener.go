@@ -23,7 +23,7 @@ func (d *Driver) listen() error {
 	var ctx context.Context
 	d.mu.Lock()
 	// protect context against context update
-	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
+	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background()) //nolint:gosec
 	d.mu.Unlock()
 
 	defer func() {
