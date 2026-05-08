@@ -68,7 +68,7 @@ jobs:
           go test -timeout 20m -v -race -cover -tags=debug -failfast -coverpkg=$(cat pkgs.txt) -coverprofile=./coverage-ci/kafka_dur.out -covermode=atomic jobs_kafka_durability_test.go
 
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: ./tests/coverage-ci/kafka_dur.out

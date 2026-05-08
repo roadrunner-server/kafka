@@ -97,7 +97,7 @@ jobs:
           docker compose -f env/docker-compose-kafka.yaml -f env/docker-compose-kafka-tls.yaml down
 
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: ./tests/coverage-ci/kafka.out
