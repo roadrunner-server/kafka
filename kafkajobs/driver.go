@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,7 +20,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 const (
@@ -31,7 +31,7 @@ var _ jobs.Driver = (*Driver)(nil)
 
 type Driver struct {
 	mu       sync.Mutex
-	log      *zap.Logger
+	log      *slog.Logger
 	pq       jobs.Queue
 	pipeline atomic.Pointer[jobs.Pipeline]
 	cfg      *config
@@ -64,7 +64,7 @@ type Configurer interface {
 }
 
 // FromConfig initializes kafka pipeline from the configuration
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipeline jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *slog.Logger, cfg Configurer, pipeline jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -142,7 +142,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 }
 
 // FromPipeline initializes a pipeline on-the-fly
-func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *slog.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -273,12 +273,12 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	go func() {
 		err := d.listen()
 		if err != nil {
-			d.log.Error("listener error", zap.Error(err))
+			d.log.Error("listener error", "error", err)
 		}
 	}()
 
 	atomic.StoreUint32(&d.listeners, 1)
-	d.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was started", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -343,7 +343,7 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 	// remove active listener
 	atomic.AddUint32(&d.listeners, ^uint32(0))
 
-	d.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was paused", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
 }
@@ -369,7 +369,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 		go func() {
 			err := d.listen()
 			if err != nil {
-				d.log.Error("listener error", zap.Error(err))
+				d.log.Error("listener error", "error", err)
 			}
 		}()
 	})
@@ -383,7 +383,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 	// set the number of listeners
 	atomic.StoreUint32(&d.listeners, 1)
 
-	d.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was resumed", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
 }
@@ -419,7 +419,7 @@ func (d *Driver) Stop(ctx context.Context) error {
 	// unsubscribe from the event bus
 	d.eventBus.Unsubscribe(d.id)
 
-	d.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	d.log.Debug("pipeline was stopped", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
 }
@@ -510,7 +510,7 @@ func (d *Driver) requeueHandler() {
 		err := d.handleItem(ctx, item)
 		cancel()
 		if err != nil {
-			d.log.Error("failed to requeue the job", zap.Error(err))
+			d.log.Error("failed to requeue the job", "error", err)
 		}
 	}
 }
@@ -526,7 +526,7 @@ func (d *Driver) ping(client *kgo.Client, pipe jobs.Pipeline) error {
 		return errors.E(op, err)
 	}
 
-	d.log.Debug("ping kafka: ok", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()))
+	d.log.Debug("ping kafka: ok", "driver", pipe.Driver(), "pipeline", pipe.Name())
 
 	return nil
 }

@@ -1,80 +1,49 @@
 package kafkajobs
 
 import (
-	"fmt"
+	"context"
+	"log/slog"
 
 	"github.com/twmb/franz-go/pkg/kgo"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 type logger struct {
-	l *zap.Logger
+	l *slog.Logger
 }
 
-func newLogger(l *zap.Logger) *logger {
+func newLogger(l *slog.Logger) *logger {
 	return &logger{
 		l,
 	}
 }
 
 func (l *logger) Level() kgo.LogLevel {
-	switch l.l.Level() {
-	case zap.DebugLevel:
+	ctx := context.Background()
+	switch {
+	case l.l.Enabled(ctx, slog.LevelDebug):
 		return kgo.LogLevelDebug
-	case zap.InfoLevel:
+	case l.l.Enabled(ctx, slog.LevelInfo):
 		return kgo.LogLevelInfo
-	case zap.WarnLevel:
+	case l.l.Enabled(ctx, slog.LevelWarn):
 		return kgo.LogLevelWarn
-	case zap.ErrorLevel, zap.PanicLevel, zap.DPanicLevel, zap.FatalLevel:
+	case l.l.Enabled(ctx, slog.LevelError):
 		return kgo.LogLevelError
-	case zapcore.InvalidLevel:
-		return kgo.LogLevelNone
 	default:
-		return kgo.LogLevelDebug
+		return kgo.LogLevelNone
 	}
 }
 
 func (l *logger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
-	var zf []zapcore.Field
-	if len(keyvals) != 0 {
-		zf = toKeyValuePair(keyvals)
-	}
-
 	switch level {
 	case kgo.LogLevelDebug, kgo.LogLevelNone:
-		l.l.Debug(msg, zf...)
+		l.l.Debug(msg, keyvals...)
 	case kgo.LogLevelInfo:
-		l.l.Info(msg, zf...)
+		l.l.Info(msg, keyvals...)
 	case kgo.LogLevelWarn:
-		l.l.Warn(msg, zf...)
+		l.l.Warn(msg, keyvals...)
 	case kgo.LogLevelError:
-		l.l.Error(msg, zf...)
+		l.l.Error(msg, keyvals...)
 	default:
-		l.l.Debug(msg, zf...)
+		l.l.Debug(msg, keyvals...)
 	}
-}
-
-func toKeyValuePair(keyvals []any) []zapcore.Field {
-	// This should never happen.
-	if len(keyvals)%2 != 0 {
-		keyvals = append(keyvals, "<missing>")
-	}
-
-	result := make([]zap.Field, 0, len(keyvals)/2)
-	for i := 0; i < len(keyvals); i += 2 {
-		keyAny := keyvals[i]
-		val := keyvals[i+1]
-
-		// By convention, keys are expected to be strings,
-		// but as a fallback we convert them using fmt.Sprint.
-		key, ok := keyAny.(string)
-		if !ok {
-			key = fmt.Sprint(keyAny)
-		}
-
-		result = append(result, zap.Any(key, val))
-	}
-
-	return result
 }

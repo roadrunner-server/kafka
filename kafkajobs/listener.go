@@ -12,7 +12,6 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
-	"go.uber.org/zap"
 )
 
 const (
@@ -79,9 +78,9 @@ func (d *Driver) listen() error {
 			switch {
 			case errors.As(errs[i].Err, &edl):
 				d.log.Warn("restarting consumer",
-					zap.String("topic", errs[i].Topic),
-					zap.Int32("partition", errs[i].Partition),
-					zap.Error(errs[i].Err))
+					"topic", errs[i].Topic,
+					"partition", errs[i].Partition,
+					"error", errs[i].Err)
 				continue
 
 			case errors.As(errs[i].Err, &regErr):
@@ -91,11 +90,11 @@ func (d *Driver) listen() error {
 				switch errP.Retriable {
 				case true:
 					d.log.Warn("retrievable consumer error, restarting consumer",
-						zap.String("topic", errs[i].Topic),
-						zap.Int32("partition", errs[i].Partition),
-						zap.Int16("code", errP.Code),
-						zap.String("description", errP.Description),
-						zap.String("message", errP.Message))
+						"topic", errs[i].Topic,
+						"partition", errs[i].Partition,
+						"code", errP.Code,
+						"description", errP.Description,
+						"message", errP.Message)
 
 					// more codes will be added
 					switch errP.Code { //nolint:gocritic
@@ -110,11 +109,11 @@ func (d *Driver) listen() error {
 					continue
 				case false:
 					d.log.Error("non-recoverable consumer error",
-						zap.String("topic", errs[i].Topic),
-						zap.Int32("partition", errs[i].Partition),
-						zap.Int16("code", errP.Code),
-						zap.String("description", errP.Description),
-						zap.String("message", errP.Message))
+						"topic", errs[i].Topic,
+						"partition", errs[i].Partition,
+						"code", errP.Code,
+						"description", errP.Description,
+						"message", errP.Message)
 
 					// error is unrecoverable, recreate a pipeline
 					d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
@@ -127,16 +126,16 @@ func (d *Driver) listen() error {
 
 			case errors.Is(errs[i].Err, context.Canceled):
 				d.log.Info("consumer context canceled, stopping the listener",
-					zap.Error(errs[i].Err),
-					zap.String("topic", errs[i].Topic),
-					zap.Int32("partition", errs[i].Partition))
+					"error", errs[i].Err,
+					"topic", errs[i].Topic,
+					"partition", errs[i].Partition)
 				return nil
 
 			default:
 				d.log.Warn("retriable consumer error",
-					zap.Error(errs[i].Err),
-					zap.String("topic", errs[i].Topic),
-					zap.Int32("partition", errs[i].Partition))
+					"error", errs[i].Err,
+					"topic", errs[i].Topic,
+					"partition", errs[i].Partition)
 			}
 		}
 

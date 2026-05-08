@@ -6,7 +6,7 @@
 // the .rr.yaml file under the "kafka" key.
 //
 // The plugin declares three dependency-injection interfaces:
-//   - [Logger] — provides a named *zap.Logger instance.
+//   - [Logger] — provides a named *slog.Logger instance.
 //   - [Configurer] — unmarshals configuration sections and checks their existence.
 //   - [Tracer] — supplies an OpenTelemetry TracerProvider for distributed tracing.
 package kafka
