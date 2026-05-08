@@ -27,7 +27,7 @@ import (
 	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
 	"github.com/roadrunner-server/informer/v5"
 	"github.com/roadrunner-server/jobs/v5"
-	kp "github.com/roadrunner-server/kafka/v5"
+	kp "github.com/roadrunner-server/kafka/v6"
 	"github.com/roadrunner-server/otel/v5"
 	"github.com/roadrunner-server/resetter/v5"
 	rpcPlugin "github.com/roadrunner-server/rpc/v5"

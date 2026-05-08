@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(head:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:docs.confluent.io)",
+      "Bash(grep:*)"
+    ]
+  }
+}

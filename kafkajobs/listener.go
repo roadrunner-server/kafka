@@ -6,7 +6,7 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
+	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/events"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -23,7 +23,7 @@ func (d *Driver) listen() error {
 	var ctx context.Context
 	d.mu.Lock()
 	// protect context against context update
-	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background()) //nolint:gosec
+	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
 	d.mu.Unlock()
 
 	defer func() {

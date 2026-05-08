@@ -19,3 +19,4 @@ tests/test-certs
 vendor/
 .idea
 .DS_Store
+.claude/settings.local.json
