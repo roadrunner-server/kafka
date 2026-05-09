@@ -64,7 +64,7 @@ type Configurer interface {
 }
 
 // FromConfig initializes kafka pipeline from the configuration
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *slog.Logger, cfg Configurer, pipeline jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
+func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey string, log *slog.Logger, cfg Configurer, pipeline jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -136,13 +136,13 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *slog.Log
 	jb.pipeline.Store(&pipeline)
 
 	go jb.recordsHandler()
-	go jb.requeueHandler()
+	go jb.requeueHandler() //nolint:gosec // G118: long-running goroutine outlives this constructor; ctx not propagated
 
 	return jb, nil
 }
 
 // FromPipeline initializes a pipeline on-the-fly
-func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *slog.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
+func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *slog.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_kafka_consumer")
 
 	if tracer == nil {
@@ -250,7 +250,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipeline jobs.Pipeline, log *
 	jb.pipeline.Store(&pipeline)
 
 	go jb.recordsHandler()
-	go jb.requeueHandler()
+	go jb.requeueHandler() //nolint:gosec // G118: long-running goroutine outlives this constructor; ctx not propagated
 
 	return jb, nil
 }

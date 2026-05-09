@@ -1,8 +1,10 @@
 package kafka
 
 import (
-	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
+	"context"
 	"log/slog"
+
+	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/endure/v2/dep"
@@ -67,11 +69,11 @@ func (p *Plugin) Collects() []*dep.In {
 }
 
 // DriverFromConfig constructs kafka driver from the .rr.yaml configuration
-func (p *Plugin) DriverFromConfig(configKey string, pq jobs.Queue, pipeline jobs.Pipeline) (jobs.Driver, error) {
-	return kafkajobs.FromConfig(p.tracer, configKey, p.log, p.cfg, pipeline, pq)
+func (p *Plugin) DriverFromConfig(ctx context.Context, configKey string, pq jobs.Queue, pipeline jobs.Pipeline) (jobs.Driver, error) {
+	return kafkajobs.FromConfig(ctx, p.tracer, configKey, p.log, p.cfg, pipeline, pq)
 }
 
 // DriverFromPipeline constructs kafka driver from pipeline
-func (p *Plugin) DriverFromPipeline(pipe jobs.Pipeline, pq jobs.Queue) (jobs.Driver, error) {
-	return kafkajobs.FromPipeline(p.tracer, pipe, p.log, p.cfg, pq)
+func (p *Plugin) DriverFromPipeline(ctx context.Context, pipe jobs.Pipeline, pq jobs.Queue) (jobs.Driver, error) {
+	return kafkajobs.FromPipeline(ctx, p.tracer, pipe, p.log, p.cfg, pq)
 }
