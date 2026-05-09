@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,15 +17,11 @@ import (
 	"testing"
 	"time"
 
-	"tests/helpers"
-	mocklogger "tests/mock"
-
-	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
 	"github.com/roadrunner-server/config/v5"
 	"github.com/roadrunner-server/endure/v2"
-	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
+	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/roadrunner-server/informer/v5"
 	"github.com/roadrunner-server/jobs/v5"
 	kp "github.com/roadrunner-server/kafka/v6"
@@ -34,7 +31,8 @@ import (
 	"github.com/roadrunner-server/server/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+	"tests/helpers"
+	mocklogger "tests/mock"
 )
 
 func TestKafkaInitCG(t *testing.T) {
@@ -45,7 +43,7 @@ func TestKafkaInitCG(t *testing.T) {
 		Path:    "configs/.rr-kafka-init-cg.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -109,7 +107,7 @@ func TestKafkaInitCG(t *testing.T) {
 	require.NoError(t, err)
 
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
+	req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
@@ -120,7 +118,7 @@ func TestKafkaInitCG(t *testing.T) {
 			Topic:     "foo",
 			Partition: 1,
 		},
-	}}
+	}}}
 
 	er := &jobsProto.Empty{}
 	errCall := client.Call("jobs.Push", req, er)
@@ -156,7 +154,7 @@ func TestKafkaPQCG(t *testing.T) {
 		Path:    "configs/.rr-kafka-init-pq.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		l,
@@ -220,7 +218,7 @@ func TestKafkaPQCG(t *testing.T) {
 	require.NoError(t, err)
 
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
+	req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
 		Job:     uuid.NewString(),
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
@@ -231,7 +229,7 @@ func TestKafkaPQCG(t *testing.T) {
 			Topic:     "foo-pq",
 			Partition: 1,
 		},
-	}}
+	}}}
 
 	wgg := &sync.WaitGroup{}
 	wgg.Add(100)
@@ -268,7 +266,7 @@ func TestKafkaInit(t *testing.T) {
 		Path:    "configs/.rr-kafka-init.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -331,7 +329,7 @@ func TestKafkaInit(t *testing.T) {
 	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
 	require.NoError(t, err)
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
+	req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
@@ -341,7 +339,7 @@ func TestKafkaInit(t *testing.T) {
 			Pipeline: "test-1",
 			Topic:    "test-1",
 		},
-	}}
+	}}}
 
 	wgg := &sync.WaitGroup{}
 	wgg.Add(1000)
@@ -375,7 +373,7 @@ func TestKafkaDeclareCG(t *testing.T) {
 		Path:    "configs/.rr-kafka-declare.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -474,7 +472,7 @@ func TestKafkaDeclare(t *testing.T) {
 		Path:    "configs/.rr-kafka-declare.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -573,7 +571,7 @@ func TestKafkaJobsError(t *testing.T) {
 		Path:    "configs/.rr-kafka-jobs-err.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -662,7 +660,7 @@ func TestKafkaOTEL(t *testing.T) {
 		Path:    "configs/.rr-kafka-otel.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},
@@ -726,7 +724,7 @@ func TestKafkaOTEL(t *testing.T) {
 	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
 	require.NoError(t, err)
 	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
+	req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
@@ -737,7 +735,7 @@ func TestKafkaOTEL(t *testing.T) {
 			Topic:     "foo-bar",
 			Partition: 1,
 		},
-	}}
+	}}}
 
 	er := &jobsProto.Empty{}
 	errCall := client.Call("jobs.Push", req, er)
@@ -801,7 +799,7 @@ func TestKafkaPingFailed(t *testing.T) {
 		Path:    "configs/.rr-kafka-ping-failed.yaml",
 	}
 
-	l, _ := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, _ := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		l,
@@ -829,7 +827,7 @@ func TestKafkaPingOk(t *testing.T) {
 		Path:    "configs/.rr-kafka-ping-ok.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err := cont.RegisterAll(
 		cfg,
 		&server.Plugin{},

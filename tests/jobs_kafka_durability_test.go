@@ -11,9 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"tests/helpers"
-	mocklogger "tests/mock"
-
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
@@ -25,12 +22,12 @@ import (
 	"github.com/roadrunner-server/jobs/v5"
 	"github.com/roadrunner-server/kafka/v6"
 	"github.com/roadrunner-server/resetter/v5"
-	"github.com/roadrunner-server/server/v5"
-	"go.uber.org/zap"
-
 	rpcPlugin "github.com/roadrunner-server/rpc/v5"
+	"github.com/roadrunner-server/server/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"tests/helpers"
+	mocklogger "tests/mock"
 )
 
 func kafkaDocker(pause, start, remove chan struct{}) (chan struct{}, error) {
@@ -172,7 +169,7 @@ func TestDurabilityKafka(t *testing.T) {
 		Path:    "configs/.rr-kafka-durability-redial.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err = cont.RegisterAll(
 		l,
 		cfg,
@@ -275,7 +272,7 @@ func TestDurabilityKafkaCG(t *testing.T) {
 		Path:    "configs/.rr-kafka-durability-redial-cg.yaml",
 	}
 
-	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 	err = cont.RegisterAll(
 		l,
 		cfg,

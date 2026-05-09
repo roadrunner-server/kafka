@@ -1,10 +1,10 @@
 package kafkajobs
 
 import (
+	"encoding/json"
 	"maps"
 	"sync/atomic"
 
-	"github.com/goccy/go-json"
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/errors"
 	"github.com/twmb/franz-go/pkg/kgo"

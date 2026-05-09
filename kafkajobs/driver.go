@@ -3,6 +3,7 @@ package kafkajobs
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -10,7 +11,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/goccy/go-json"
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/events"

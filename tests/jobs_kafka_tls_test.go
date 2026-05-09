@@ -9,9 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"tests/helpers"
-	mocklogger "tests/mock"
-
 	"github.com/roadrunner-server/config/v5"
 	"github.com/roadrunner-server/endure/v2"
 	"github.com/roadrunner-server/informer/v5"
@@ -22,7 +19,8 @@ import (
 	"github.com/roadrunner-server/server/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
+	"tests/helpers"
+	mocklogger "tests/mock"
 )
 
 func TestKafkaTLS(t *testing.T) {
@@ -42,7 +40,7 @@ func pushJobTest(env string, rpcAddress string, pipeline string) func(t *testing
 			Path:    env,
 		}
 
-		l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+		l, oLogger := mocklogger.SlogTestLogger(slog.LevelDebug)
 		err := cont.RegisterAll(
 			cfg,
 			&server.Plugin{},

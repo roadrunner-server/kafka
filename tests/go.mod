@@ -7,12 +7,11 @@ toolchain go1.26.0
 require (
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.7.0
-	github.com/goccy/go-json v0.10.6
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api/v4 v4.24.0
 	github.com/roadrunner-server/config/v5 v5.1.9
 	github.com/roadrunner-server/endure/v2 v2.6.2
-	github.com/roadrunner-server/goridge/v3 v3.8.3
+	github.com/roadrunner-server/goridge/v4 v4.0.0-beta.1
 	github.com/roadrunner-server/informer/v5 v5.1.9
 	github.com/roadrunner-server/jobs/v5 v5.1.9
 	github.com/roadrunner-server/kafka/v6 v6.0.0
@@ -21,7 +20,6 @@ require (
 	github.com/roadrunner-server/rpc/v5 v5.1.9
 	github.com/roadrunner-server/server/v5 v5.2.10
 	github.com/stretchr/testify v1.11.1
-	go.uber.org/zap v1.28.0
 )
 
 replace github.com/roadrunner-server/kafka/v6 => ../
@@ -59,6 +57,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/mock v1.7.0-rc.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3 // indirect
@@ -88,6 +87,7 @@ require (
 	github.com/roadrunner-server/context v1.3.0 // indirect
 	github.com/roadrunner-server/errors v1.5.0 // indirect
 	github.com/roadrunner-server/events v1.0.1 // indirect
+	github.com/roadrunner-server/goridge/v3 v3.8.3 // indirect
 	github.com/roadrunner-server/pool v1.1.3 // indirect
 	github.com/roadrunner-server/priority_queue v1.0.6 // indirect
 	github.com/roadrunner-server/tcplisten v1.5.2 // indirect
@@ -124,10 +124,11 @@ require (
 	go.temporal.io/sdk v1.43.0 // indirect
 	go.temporal.io/sdk/contrib/opentelemetry v0.7.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.51.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
