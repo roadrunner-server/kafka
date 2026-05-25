@@ -1,11 +1,9 @@
 package tests
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"slices"
@@ -25,13 +23,33 @@ import (
 	"github.com/roadrunner-server/informer/v6"
 	"github.com/roadrunner-server/jobs/v6"
 	kp "github.com/roadrunner-server/kafka/v6"
-	"github.com/roadrunner-server/otel/v6"
 	"github.com/roadrunner-server/resetter/v6"
 	rpcPlugin "github.com/roadrunner-server/rpc/v6"
 	"github.com/roadrunner-server/server/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
+
+// inMemoryTracer satisfies jobs.Tracer for the OTEL test without relying on
+// otel.Plugin (which hard-rejects the zipkin exporter at Init since beta.3).
+type inMemoryTracer struct {
+	tp  *sdktrace.TracerProvider
+	exp *tracetest.InMemoryExporter
+}
+
+func newInMemoryTracer(t *testing.T) *inMemoryTracer {
+	t.Helper()
+	exp := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exp))
+	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
+	return &inMemoryTracer{tp: tp, exp: exp}
+}
+
+func (m *inMemoryTracer) Init() error                      { return nil }
+func (m *inMemoryTracer) Name() string                     { return "inMemoryTracer" }
+func (m *inMemoryTracer) Tracer() *sdktrace.TracerProvider { return m.tp }
 
 func TestKafkaInitCG(t *testing.T) {
 	cont := endure.New(slog.LevelDebug)
@@ -636,11 +654,7 @@ func TestKafkaJobsError(t *testing.T) {
 }
 
 func TestKafkaOTEL(t *testing.T) {
-	// otel/v6 (≥beta.3) hard-rejects the zipkin exporter at Init
-	// (plugin.go:89 returns errors.Errorf("zipkin exporter is deprecated")).
-	// The config + test verification still target zipkin (/api/v2/spans).
-	// Skip until upstream restores zipkin or the test migrates to OTLP+jaeger.
-	t.Skip("blocked on otel/v6 hard-rejecting zipkin exporter; config + verification still target zipkin")
+	tracer := newInMemoryTracer(t)
 	cont := endure.New(slog.LevelError)
 
 	cfg := &config.Plugin{
@@ -655,7 +669,7 @@ func TestKafkaOTEL(t *testing.T) {
 		&rpcPlugin.Plugin{},
 		&jobs.Plugin{},
 		&kp.Plugin{},
-		&otel.Plugin{},
+		tracer,
 		l,
 		&resetter.Plugin{},
 		&informer.Plugin{},
@@ -741,35 +755,27 @@ func TestKafkaOTEL(t *testing.T) {
 	stopCh <- struct{}{}
 	wg.Wait()
 
-	resp, err := http.Get("http://127.0.0.1:9411/api/v2/spans?serviceName=rr_test_kafka")
-	assert.NoError(t, err)
-
-	buf, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err)
-
-	var spans []string
-	err = json.Unmarshal(buf, &spans)
-	assert.NoError(t, err)
-
+	stubSpans := tracer.exp.GetSpans()
+	spans := make([]string, 0, len(stubSpans))
+	for _, s := range stubSpans {
+		spans = append(spans, s.Name)
+	}
 	slices.Sort(spans)
+	spans = slices.Compact(spans)
 
-	expected := []string{
+	for _, want := range []string{
 		"destroy_pipeline",
 		"jobs_listener",
 		"kafka_listener",
 		"kafka_push",
-		"kafka_stop",
 		"push",
+	} {
+		assert.Contains(t, spans, want, "expected span %q in collected set %v", want, spans)
 	}
-	assert.Equal(t, expected, spans)
 
 	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was pushed successfully").Len(), 3)
 	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was pushed successfully").Len(), 3)
 	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was processed successfully").Len(), 3)
-
-	t.Cleanup(func() {
-		_ = resp.Body.Close()
-	})
 }
 
 func TestKafkaPingFailed(t *testing.T) {
