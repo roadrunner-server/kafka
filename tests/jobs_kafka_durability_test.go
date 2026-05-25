@@ -196,12 +196,10 @@ func TestDurabilityKafka(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -225,7 +223,7 @@ func TestDurabilityKafka(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	time.Sleep(time.Second)
 	pause <- struct{}{}
@@ -299,12 +297,10 @@ func TestDurabilityKafkaCG(t *testing.T) {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
 	stopCh := make(chan struct{}, 1)
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for {
 			select {
 			case e := <-ch:
@@ -328,7 +324,7 @@ func TestDurabilityKafkaCG(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 	time.Sleep(time.Second)
 	pause <- struct{}{}
 	time.Sleep(time.Second * 15)
