@@ -13,11 +13,11 @@ require (
 	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.2
 	github.com/roadrunner-server/config/v6 v6.0.0-beta.3
 	github.com/roadrunner-server/endure/v2 v2.6.2
-	github.com/roadrunner-server/informer/v6 v6.0.0-beta.1
-	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.6
+	github.com/roadrunner-server/informer/v6 v6.0.0-beta.2
+	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.7
 	github.com/roadrunner-server/kafka/v6 v6.0.0
 	github.com/roadrunner-server/otel/v6 v6.0.0-beta.3
-	github.com/roadrunner-server/resetter/v6 v6.0.0-beta.2
+	github.com/roadrunner-server/resetter/v6 v6.0.0-beta.3
 	github.com/roadrunner-server/rpc/v6 v6.0.0-beta.4
 	github.com/roadrunner-server/server/v6 v6.0.0-beta.5
 	github.com/stretchr/testify v1.11.1
@@ -101,8 +101,8 @@ require (
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tklauser/go-sysconf v0.3.16 // indirect
-	github.com/tklauser/numcpus v0.11.0 // indirect
+	github.com/tklauser/go-sysconf v0.4.0 // indirect
+	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/twmb/franz-go v1.21.1 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.13.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
