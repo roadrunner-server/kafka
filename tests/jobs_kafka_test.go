@@ -235,7 +235,10 @@ func TestKafkaPQCG(t *testing.T) {
 	assert.Equal(t, 0, oLogger.FilterMessageSnippet("job was processed successfully").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was started").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
-	assert.Equal(t, 4, oLogger.FilterMessageSnippet("job processing was started").Len())
+	// "job processing was started" fires once per job pulled by the listener (jobs/listener.go),
+	// not once per worker. The pool has 4 workers, so 4 is the minimum; the actual count
+	// fluctuates with Kafka consumer group poll timing (5-8 observed across runs).
+	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job processing was started").Len(), 4)
 	assert.Equal(t, 4, oLogger.FilterMessageSnippet("------> job poller was stopped <------").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("consumer context canceled, stopping the listener").Len())
 	assert.GreaterOrEqual(t, oLogger.FilterMessageSnippet("job was pushed successfully").Len(), 100)
