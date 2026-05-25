@@ -2,29 +2,33 @@ module tests
 
 go 1.26
 
-toolchain go1.26.0
+toolchain go1.26.3
 
 require (
+	connectrpc.com/connect v1.20.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/roadrunner-server/api/v4 v4.24.0
+	github.com/roadrunner-server/api-go/v6 v6.0.0-beta.12
+	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.2
 	github.com/roadrunner-server/config/v6 v6.0.0-beta.3
 	github.com/roadrunner-server/endure/v2 v2.6.2
-	github.com/roadrunner-server/goridge/v4 v4.0.0-beta.1
-	github.com/roadrunner-server/informer/v6 v6.0.0-beta.1
-	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.6
+	github.com/roadrunner-server/informer/v6 v6.0.0-beta.2
+	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.7
 	github.com/roadrunner-server/kafka/v6 v6.0.0
 	github.com/roadrunner-server/otel/v6 v6.0.0-beta.3
-	github.com/roadrunner-server/resetter/v6 v6.0.0-beta.2
-	github.com/roadrunner-server/rpc/v6 v6.0.0-beta.3
+	github.com/roadrunner-server/resetter/v6 v6.0.0-beta.3
+	github.com/roadrunner-server/rpc/v6 v6.0.0-beta.4
 	github.com/roadrunner-server/server/v6 v6.0.0-beta.5
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/net v0.55.0
+	google.golang.org/protobuf v1.36.11
 )
 
 replace github.com/roadrunner-server/kafka/v6 => ../
 
 require (
+	connectrpc.com/grpcreflect v1.3.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.7 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.32.17 // indirect
@@ -81,11 +85,10 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
-	github.com/roadrunner-server/api-go/v6 v6.0.0-beta.4 // indirect
-	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.2 // indirect
 	github.com/roadrunner-server/context v1.3.0 // indirect
 	github.com/roadrunner-server/errors v1.5.0 // indirect
 	github.com/roadrunner-server/events v1.0.1 // indirect
+	github.com/roadrunner-server/goridge/v4 v4.0.0-beta.2 // indirect
 	github.com/roadrunner-server/pool/v2 v2.0.0-beta.1 // indirect
 	github.com/roadrunner-server/priority_queue v1.0.6 // indirect
 	github.com/roadrunner-server/tcplisten v1.5.2 // indirect
@@ -98,8 +101,8 @@ require (
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tklauser/go-sysconf v0.3.16 // indirect
-	github.com/tklauser/numcpus v0.11.0 // indirect
+	github.com/tklauser/go-sysconf v0.4.0 // indirect
+	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/twmb/franz-go v1.21.1 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.13.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
@@ -115,24 +118,22 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
-	go.temporal.io/api v1.62.11 // indirect
-	go.temporal.io/sdk v1.43.0 // indirect
+	go.temporal.io/api v1.62.12 // indirect
+	go.temporal.io/sdk v1.44.0 // indirect
 	go.temporal.io/sdk/contrib/opentelemetry v0.7.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.51.0 // indirect
-	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto v0.0.0-20260504160031-60b97b32f348 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260504160031-60b97b32f348 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260504160031-60b97b32f348 // indirect
-	google.golang.org/grpc v1.81.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
+	google.golang.org/grpc v1.81.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )
