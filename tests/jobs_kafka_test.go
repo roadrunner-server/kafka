@@ -1,14 +1,11 @@
 package tests
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
-	"net/rpc"
 	"os"
 	"os/signal"
 	"slices"
@@ -17,11 +14,14 @@ import (
 	"testing"
 	"time"
 
+	"tests/helpers"
+	mocklogger "tests/mock"
+
+	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
+	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
 	"github.com/roadrunner-server/config/v6"
 	"github.com/roadrunner-server/endure/v2"
-	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/roadrunner-server/informer/v6"
 	"github.com/roadrunner-server/jobs/v6"
 	kp "github.com/roadrunner-server/kafka/v6"
@@ -31,8 +31,6 @@ import (
 	"github.com/roadrunner-server/server/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"tests/helpers"
-	mocklogger "tests/mock"
 )
 
 func TestKafkaInitCG(t *testing.T) {
@@ -102,37 +100,29 @@ func TestKafkaInitCG(t *testing.T) {
 	}()
 
 	time.Sleep(time.Second * 3)
-	var d net.Dialer
-	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
-	require.NoError(t, err)
-
-	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-	req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
+	client := helpers.NewJobsClient(t, "127.0.0.1:6001")
+	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
-		Headers: map[string]*jobsProto.HeaderValue{"test": {Value: []string{"test2"}}},
+		Headers: map[string]*jobsProto.JobHeaderValue{"test": {Values: []string{"test2"}}},
 		Options: &jobsProto.Options{
 			Priority:  1,
 			Pipeline:  "test-1",
 			Topic:     "foo",
 			Partition: 1,
 		},
-	}}}
+	}}
 
-	er := &jobsProto.Empty{}
-	errCall := client.Call("jobs.Push", req, er)
+	_, errCall := client.Push(t.Context(), connect.NewRequest(req))
 	require.NoError(t, errCall)
 
 	wgg := &sync.WaitGroup{}
-	wgg.Add(100)
 	for range 100 {
-		go func() {
-			defer wgg.Done()
-			resp := &jobsProto.Empty{}
-			errCall := client.Call("jobs.Push", req, resp)
+		wgg.Go(func() {
+			_, errCall := client.Push(t.Context(), connect.NewRequest(req))
 			require.NoError(t, errCall)
-		}()
+		})
 	}
 	wgg.Wait()
 
@@ -213,33 +203,26 @@ func TestKafkaPQCG(t *testing.T) {
 	}()
 
 	time.Sleep(time.Second * 3)
-	var d net.Dialer
-	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6002")
-	require.NoError(t, err)
-
-	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-	req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
+	client := helpers.NewJobsClient(t, "127.0.0.1:6002")
+	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
 		Job:     uuid.NewString(),
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
-		Headers: map[string]*jobsProto.HeaderValue{"test": {Value: []string{"test2"}}},
+		Headers: map[string]*jobsProto.JobHeaderValue{"test": {Values: []string{"test2"}}},
 		Options: &jobsProto.Options{
 			Priority:  1,
 			Pipeline:  "test-1-pq",
 			Topic:     "foo-pq",
 			Partition: 1,
 		},
-	}}}
+	}}
 
 	wgg := &sync.WaitGroup{}
-	wgg.Add(100)
 	for range 100 {
-		go func() {
-			defer wgg.Done()
-			resp := &jobsProto.Empty{}
-			errCall := client.Call("jobs.Push", req, resp)
+		wgg.Go(func() {
+			_, errCall := client.Push(t.Context(), connect.NewRequest(req))
 			require.NoError(t, errCall)
-		}()
+		})
 	}
 	wgg.Wait()
 
@@ -325,31 +308,25 @@ func TestKafkaInit(t *testing.T) {
 	}()
 
 	time.Sleep(time.Second * 3)
-	var d net.Dialer
-	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
-	require.NoError(t, err)
-	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-	req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
+	client := helpers.NewJobsClient(t, "127.0.0.1:6001")
+	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
-		Headers: map[string]*jobsProto.HeaderValue{"test": {Value: []string{"test2"}}},
+		Headers: map[string]*jobsProto.JobHeaderValue{"test": {Values: []string{"test2"}}},
 		Options: &jobsProto.Options{
 			Priority: 1,
 			Pipeline: "test-1",
 			Topic:    "test-1",
 		},
-	}}}
+	}}
 
 	wgg := &sync.WaitGroup{}
-	wgg.Add(1000)
 	for range 1000 {
-		go func() {
-			defer wgg.Done()
-			er := &jobsProto.Empty{}
-			errCall := client.Call("jobs.Push", req, er)
+		wgg.Go(func() {
+			_, errCall := client.Push(t.Context(), connect.NewRequest(req))
 			require.NoError(t, errCall)
-		}()
+		})
 	}
 	wgg.Wait()
 
@@ -720,36 +697,29 @@ func TestKafkaOTEL(t *testing.T) {
 	}()
 
 	time.Sleep(time.Second * 3)
-	var d net.Dialer
-	conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
-	require.NoError(t, err)
-	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-	req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{&jobsProto.Job{
+	client := helpers.NewJobsClient(t, "127.0.0.1:6001")
+	req := &jobsProto.PushRequest{Job: &jobsProto.Job{
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
-		Headers: map[string]*jobsProto.HeaderValue{"test": {Value: []string{"test2"}}},
+		Headers: map[string]*jobsProto.JobHeaderValue{"test": {Values: []string{"test2"}}},
 		Options: &jobsProto.Options{
 			Priority:  1,
 			Pipeline:  "test-1",
 			Topic:     "foo-bar",
 			Partition: 1,
 		},
-	}}}
+	}}
 
-	er := &jobsProto.Empty{}
-	errCall := client.Call("jobs.Push", req, er)
+	_, errCall := client.Push(t.Context(), connect.NewRequest(req))
 	require.NoError(t, errCall)
 
 	wgg := &sync.WaitGroup{}
-	wgg.Add(3)
 	for range 3 {
-		go func() {
-			defer wgg.Done()
-			er := &jobsProto.Empty{}
-			errCall := client.Call("jobs.Push", req, er)
+		wgg.Go(func() {
+			_, errCall := client.Push(t.Context(), connect.NewRequest(req))
 			require.NoError(t, errCall)
-		}()
+		})
 	}
 	wgg.Wait()
 
@@ -854,14 +824,11 @@ func TestKafkaPingOk(t *testing.T) {
 
 func declarePipe(topic string) func(t *testing.T) {
 	return func(t *testing.T) {
-		var d net.Dialer
-		conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
-		assert.NoError(t, err)
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		client := helpers.NewJobsClient(t, "127.0.0.1:6001")
 
 		consumer := fmt.Sprintf(`{"topics": ["%s"], "consumer_offset": {"type": "AtStart"}}`, topic)
 
-		pipe := &jobsProto.DeclareRequest{
+		req := &jobsProto.DeclareRequest{
 			Pipeline: map[string]string{
 				"driver":                    "kafka",
 				"name":                      topic,
@@ -879,22 +846,18 @@ func declarePipe(topic string) func(t *testing.T) {
 			},
 		}
 
-		er := &jobsProto.Empty{}
-		err = client.Call("jobs.Declare", pipe, er)
+		_, err := client.Declare(t.Context(), connect.NewRequest(req))
 		assert.NoError(t, err)
 	}
 }
 
 func declarePipeCG(topic string) func(t *testing.T) {
 	return func(t *testing.T) {
-		var d net.Dialer
-		conn, err := d.DialContext(context.Background(), "tcp", "127.0.0.1:6001")
-		assert.NoError(t, err)
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		client := helpers.NewJobsClient(t, "127.0.0.1:6001")
 
 		consumer := fmt.Sprintf(`{"topics": ["%s"], "consumer_offset": {"type": "AtStart"}}`, topic)
 
-		pipe := &jobsProto.DeclareRequest{
+		req := &jobsProto.DeclareRequest{
 			Pipeline: map[string]string{
 				"driver":                    "kafka",
 				"name":                      topic,
@@ -917,8 +880,7 @@ func declarePipeCG(topic string) func(t *testing.T) {
 			},
 		}
 
-		er := &jobsProto.Empty{}
-		err = client.Call("jobs.Declare", pipe, er)
+		_, err := client.Declare(t.Context(), connect.NewRequest(req))
 		assert.NoError(t, err)
 	}
 }
