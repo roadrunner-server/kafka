@@ -49,7 +49,7 @@ type Driver struct {
 	recordsCh      chan *kgo.Record
 	requeueCh      chan *Item
 
-	listeners uint32
+	listeners atomic.Uint32
 	delayed   *int64
 	stopped   uint64
 
@@ -277,7 +277,7 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 		}
 	}()
 
-	atomic.StoreUint32(&d.listeners, 1)
+	d.listeners.Store(1)
 	d.log.Debug("pipeline was started", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 	return nil
 }
@@ -313,7 +313,7 @@ func (d *Driver) State(ctx context.Context) (*jobs.State, error) {
 		Pipeline: pipe.Name(),
 		Driver:   pipe.Driver(),
 		Queue:    topics(d.cfg),
-		Ready:    atomic.LoadUint32(&d.listeners) > 0,
+		Ready:    d.listeners.Load() > 0,
 	}, nil
 }
 
@@ -328,7 +328,7 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := atomic.LoadUint32(&d.listeners)
+	l := d.listeners.Load()
 	// no active listeners
 	if l == 0 {
 		return errors.Str("no active listeners, nothing to pause")
@@ -341,7 +341,7 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 	d.mu.Unlock()
 
 	// remove active listener
-	atomic.AddUint32(&d.listeners, ^uint32(0))
+	d.listeners.Add(^uint32(0))
 
 	d.log.Debug("pipeline was paused", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
@@ -359,7 +359,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := atomic.LoadUint32(&d.listeners)
+	l := d.listeners.Load()
 	// no active listeners
 	if l == 1 {
 		return errors.Str("kafka listener is already in the active state")
@@ -381,7 +381,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 	d.mu.Unlock()
 
 	// set the number of listeners
-	atomic.StoreUint32(&d.listeners, 1)
+	d.listeners.Store(1)
 
 	d.log.Debug("pipeline was resumed", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 

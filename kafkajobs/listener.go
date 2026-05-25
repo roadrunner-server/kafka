@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"sync/atomic"
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/events"
@@ -40,7 +39,7 @@ func (d *Driver) listen() error {
 			d.log.Debug("kafka client closed, sending pipeline restart command")
 
 			// remove all listeners
-			atomic.StoreUint32(&d.listeners, 0)
+			d.listeners.Store(0)
 
 			return errors.New("client is closed, stopping the pipeline")
 		}
@@ -119,7 +118,7 @@ func (d *Driver) listen() error {
 					d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
 
 					// remove all listeners
-					atomic.StoreUint32(&d.listeners, 0)
+					d.listeners.Store(0)
 
 					return errs[i].Err
 				}
