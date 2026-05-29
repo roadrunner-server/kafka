@@ -94,10 +94,8 @@ func (d *Driver) listen() error {
 						"description", regErr.Description,
 						"message", regErr.Message)
 
-					// more codes will be added
-					switch regErr.Code { //nolint:gocritic
-					// unknown_topic_id
-					case 100:
+					// unknown_topic_id (100); more codes will be added as needed
+					if regErr.Code == 100 {
 						d.mu.Lock()
 						d.kafkaClient.PurgeTopicsFromClient(errs[i].Topic)
 						d.kafkaClient.AddConsumeTopics(errs[i].Topic)
