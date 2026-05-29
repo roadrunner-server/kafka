@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -50,8 +50,7 @@ type Driver struct {
 	requeueCh      chan *Item
 
 	listeners atomic.Uint32
-	delayed   *int64
-	stopped   uint64
+	stopped   atomic.Uint64
 
 	once sync.Once
 }
@@ -116,10 +115,8 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		eventBus: eventBus,
 		id:       id,
 
-		stopped:   0,
 		recordsCh: make(chan *kgo.Record, 100),
 		requeueCh: make(chan *Item, 10),
-		delayed:   new(int64(0)),
 		cfg:       &conf,
 	}
 
@@ -230,10 +227,8 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		eventBus: eventBus,
 		id:       id,
 
-		stopped:   0,
 		recordsCh: make(chan *kgo.Record, 100),
 		requeueCh: make(chan *Item, 10),
-		delayed:   new(int64(0)),
 		cfg:       &conf,
 	}
 
@@ -393,7 +388,7 @@ func (d *Driver) Stop(ctx context.Context) error {
 
 	d.mu.Lock()
 	// set the stopped state
-	atomic.StoreUint64(&d.stopped, 1)
+	d.stopped.Store(1)
 
 	defer func() {
 		close(d.requeueCh)
@@ -489,7 +484,7 @@ func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 
 func topics(cfg *config) string {
 	if cfg.ConsumerOpts != nil {
-		return fmt.Sprintf("%s", cfg.ConsumerOpts.Topics)
+		return strings.Join(cfg.ConsumerOpts.Topics, ",")
 	}
 
 	return "NO TOPICS"

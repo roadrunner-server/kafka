@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	stderrors "errors"
 	"log/slog"
 	"net"
 	"os"
@@ -48,7 +49,7 @@ func (c *config) InitDefault(l *slog.Logger) ([]kgo.Opt, error) {
 		// check for the key and cert files
 		if c.TLS.Key != "" {
 			if _, err := os.Stat(c.TLS.Key); err != nil {
-				if os.IsNotExist(err) {
+				if stderrors.Is(err, os.ErrNotExist) {
 					return nil, errors.E(op, errors.Errorf("private key file '%s' does not exist", c.TLS.Key))
 				}
 
@@ -58,7 +59,7 @@ func (c *config) InitDefault(l *slog.Logger) ([]kgo.Opt, error) {
 
 		if c.TLS.Cert != "" {
 			if _, err := os.Stat(c.TLS.Cert); err != nil {
-				if os.IsNotExist(err) {
+				if stderrors.Is(err, os.ErrNotExist) {
 					return nil, errors.E(op, errors.Errorf("public certificate file '%s' does not exist", c.TLS.Cert))
 				}
 
@@ -69,7 +70,7 @@ func (c *config) InitDefault(l *slog.Logger) ([]kgo.Opt, error) {
 		// if rootCA is provided - check it
 		if c.TLS.RootCA != "" {
 			if _, err := os.Stat(c.TLS.RootCA); err != nil {
-				if os.IsNotExist(err) {
+				if stderrors.Is(err, os.ErrNotExist) {
 					return nil, errors.Errorf("root CA file '%s' does not exist", c.TLS.RootCA)
 				}
 
@@ -305,9 +306,9 @@ func (c *config) InitDefault(l *slog.Logger) ([]kgo.Opt, error) {
 
 					partitions[k] = kgoOff
 				}
-
-				kgo.ConsumePartitions(partitions)
 			}
+
+			opts = append(opts, kgo.ConsumePartitions(partitions))
 		}
 	}
 

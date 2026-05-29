@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"sync/atomic"
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/events"
@@ -83,20 +84,18 @@ func (d *Driver) listen() error {
 				continue
 
 			case errors.As(errs[i].Err, &regErr):
-				var errP *kerr.Error
-				errors.As(errs[i].Err, &errP)
 				// https://kafka.apache.org/protocol.html#protocol_error_codes
-				switch errP.Retriable {
+				switch regErr.Retriable {
 				case true:
 					d.log.Warn("retrievable consumer error, restarting consumer",
 						"topic", errs[i].Topic,
 						"partition", errs[i].Partition,
-						"code", errP.Code,
-						"description", errP.Description,
-						"message", errP.Message)
+						"code", regErr.Code,
+						"description", regErr.Description,
+						"message", regErr.Message)
 
 					// more codes will be added
-					switch errP.Code { //nolint:gocritic
+					switch regErr.Code { //nolint:gocritic
 					// unknown_topic_id
 					case 100:
 						d.mu.Lock()
@@ -110,9 +109,9 @@ func (d *Driver) listen() error {
 					d.log.Error("non-recoverable consumer error",
 						"topic", errs[i].Topic,
 						"partition", errs[i].Partition,
-						"code", errP.Code,
-						"description", errP.Description,
-						"message", errP.Message)
+						"code", regErr.Code,
+						"description", regErr.Description,
+						"message", regErr.Message)
 
 					// error is unrecoverable, recreate a pipeline
 					d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
@@ -155,7 +154,7 @@ func (d *Driver) listen() error {
 	}
 }
 
-func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, stopped *uint64) *Item {
+func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, stopped *atomic.Uint64) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
