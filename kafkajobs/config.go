@@ -238,6 +238,35 @@ func (c *config) InitDefault(l *slog.Logger) ([]kgo.Opt, error) {
 		case len(c.ConsumerOpts.Topics) > 0:
 			opts = append(opts, kgo.ConsumeTopics(c.ConsumerOpts.Topics...))
 		case len(c.ConsumerOpts.ConsumePartitions) > 0:
+			partitions := make(map[string]map[int32]kgo.Offset, len(c.ConsumerOpts.ConsumePartitions))
+
+			for k, v := range c.ConsumerOpts.ConsumePartitions {
+				if len(v) > 0 {
+					kgoOff := make(map[int32]kgo.Offset, len(v))
+					for kk, vv := range v {
+						switch vv.Type {
+						case At:
+							kgoOff[kk] = kgo.NewOffset().At(vv.Value)
+						case AfterMilli:
+							kgoOff[kk] = kgo.NewOffset().AfterMilli(vv.Value)
+						case AtEnd:
+							kgoOff[kk] = kgo.NewOffset().AtEnd()
+						case AtStart:
+							kgoOff[kk] = kgo.NewOffset().AtStart()
+						case Relative:
+							kgoOff[kk] = kgo.NewOffset().Relative(vv.Value)
+						case WithEpoch:
+							kgoOff[kk] = kgo.NewOffset().WithEpoch(int32(vv.Value)) //nolint:gosec
+						default:
+							return nil, errors.Errorf("unknown type: %s", vv.Type)
+						}
+					}
+
+					partitions[k] = kgoOff
+				}
+			}
+
+			opts = append(opts, kgo.ConsumePartitions(partitions))
 		default:
 			return nil, errors.Str("topics and consume partitions should not be empty for the consumer")
 		}
@@ -277,38 +306,6 @@ func (c *config) InitDefault(l *slog.Logger) ([]kgo.Opt, error) {
 
 		if c.ConsumerOpts.MinFetchMessageSize != 0 {
 			opts = append(opts, kgo.FetchMinBytes(c.ConsumerOpts.MinFetchMessageSize))
-		}
-
-		if len(c.ConsumerOpts.ConsumePartitions) > 0 {
-			partitions := make(map[string]map[int32]kgo.Offset, len(c.ConsumerOpts.ConsumePartitions))
-
-			for k, v := range c.ConsumerOpts.ConsumePartitions {
-				if len(v) > 0 {
-					kgoOff := make(map[int32]kgo.Offset, len(v))
-					for kk, vv := range v {
-						switch vv.Type {
-						case At:
-							kgoOff[kk] = kgo.NewOffset().At(vv.Value)
-						case AfterMilli:
-							kgoOff[kk] = kgo.NewOffset().AfterMilli(vv.Value)
-						case AtEnd:
-							kgoOff[kk] = kgo.NewOffset().AtEnd()
-						case AtStart:
-							kgoOff[kk] = kgo.NewOffset().AtStart()
-						case Relative:
-							kgoOff[kk] = kgo.NewOffset().Relative(vv.Value)
-						case WithEpoch:
-							kgoOff[kk] = kgo.NewOffset().WithEpoch(int32(vv.Value)) //nolint:gosec
-						default:
-							return nil, errors.Errorf("unknown type: %s", vv.Type)
-						}
-					}
-
-					partitions[k] = kgoOff
-				}
-			}
-
-			opts = append(opts, kgo.ConsumePartitions(partitions))
 		}
 	}
 

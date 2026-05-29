@@ -484,7 +484,16 @@ func (d *Driver) handleItem(ctx context.Context, msg *Item) error {
 
 func topics(cfg *config) string {
 	if cfg.ConsumerOpts != nil {
-		return strings.Join(cfg.ConsumerOpts.Topics, ",")
+		if len(cfg.ConsumerOpts.Topics) > 0 {
+			return strings.Join(cfg.ConsumerOpts.Topics, ",")
+		}
+		if len(cfg.ConsumerOpts.ConsumePartitions) > 0 {
+			keys := make([]string, 0, len(cfg.ConsumerOpts.ConsumePartitions))
+			for t := range cfg.ConsumerOpts.ConsumePartitions {
+				keys = append(keys, t)
+			}
+			return strings.Join(keys, ",")
+		}
 	}
 
 	return "NO TOPICS"
