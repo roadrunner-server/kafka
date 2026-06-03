@@ -30,7 +30,7 @@ type Item struct {
 
 	// kafka related fields
 	// private (used to commit messages)
-	stopped   *uint64
+	stopped   *atomic.Uint64
 	commitsCh chan *kgo.Record
 	requeueCh chan *Item
 	record    *kgo.Record
@@ -112,7 +112,7 @@ func (i *Item) Context() ([]byte, error) {
 func (i *Item) Ack() error {
 	// check if we have jobs in worker, but the consumer was already stopped
 	// TODO: should not be needed after logic update
-	if atomic.LoadUint64(i.stopped) == 1 {
+	if i.stopped.Load() == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
 	select {
@@ -128,7 +128,7 @@ func (i *Item) Nack() error {
 }
 
 func (i *Item) NackWithOptions(requeue bool, _ int) error {
-	if atomic.LoadUint64(i.stopped) == 1 {
+	if i.stopped.Load() == 1 {
 		return errors.Str("failed to NackWithOptions the JOB, the pipeline is probably stopped")
 	}
 
@@ -164,7 +164,7 @@ func (i *Item) Copy() *Item {
 func (i *Item) Requeue(headers map[string][]string, _ int) error {
 	// check if we have jobs in worker, but the consumer was already stopped
 	// TODO: should not be needed after logic update
-	if atomic.LoadUint64(i.stopped) == 1 {
+	if i.stopped.Load() == 1 {
 		return errors.Str("failed to requeue the JOB, the pipeline is probably stopped")
 	}
 

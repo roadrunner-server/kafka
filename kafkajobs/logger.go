@@ -8,25 +8,26 @@ import (
 )
 
 type logger struct {
-	l *slog.Logger
+	l   *slog.Logger
+	ctx context.Context
 }
 
 func newLogger(l *slog.Logger) *logger {
 	return &logger{
-		l,
+		l:   l,
+		ctx: context.Background(),
 	}
 }
 
 func (l *logger) Level() kgo.LogLevel {
-	ctx := context.Background()
 	switch {
-	case l.l.Enabled(ctx, slog.LevelDebug):
+	case l.l.Enabled(l.ctx, slog.LevelDebug):
 		return kgo.LogLevelDebug
-	case l.l.Enabled(ctx, slog.LevelInfo):
+	case l.l.Enabled(l.ctx, slog.LevelInfo):
 		return kgo.LogLevelInfo
-	case l.l.Enabled(ctx, slog.LevelWarn):
+	case l.l.Enabled(l.ctx, slog.LevelWarn):
 		return kgo.LogLevelWarn
-	case l.l.Enabled(ctx, slog.LevelError):
+	case l.l.Enabled(l.ctx, slog.LevelError):
 		return kgo.LogLevelError
 	default:
 		return kgo.LogLevelNone
