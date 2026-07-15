@@ -15,7 +15,6 @@ import (
 	"tests/helpers"
 	mocklogger "tests/mock"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
 	"github.com/roadrunner-server/config/v6"
@@ -132,14 +131,14 @@ func TestKafkaInitCG(t *testing.T) {
 		},
 	}}
 
-	_, errCall := client.Push(t.Context(), connect.NewRequest(req))
+	errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
 	require.NoError(t, errCall)
 
 	wgg := &sync.WaitGroup{}
 	for range 100 {
 		wgg.Go(func() {
-			_, errCall := client.Push(t.Context(), connect.NewRequest(req))
-			require.NoError(t, errCall)
+			errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
+			assert.NoError(t, errCall)
 		})
 	}
 	wgg.Wait()
@@ -238,8 +237,8 @@ func TestKafkaPQCG(t *testing.T) {
 	wgg := &sync.WaitGroup{}
 	for range 100 {
 		wgg.Go(func() {
-			_, errCall := client.Push(t.Context(), connect.NewRequest(req))
-			require.NoError(t, errCall)
+			errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
+			assert.NoError(t, errCall)
 		})
 	}
 	wgg.Wait()
@@ -348,8 +347,8 @@ func TestKafkaInit(t *testing.T) {
 	wgg := &sync.WaitGroup{}
 	for range 1000 {
 		wgg.Go(func() {
-			_, errCall := client.Push(t.Context(), connect.NewRequest(req))
-			require.NoError(t, errCall)
+			errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
+			assert.NoError(t, errCall)
 		})
 	}
 	wgg.Wait()
@@ -736,14 +735,14 @@ func TestKafkaOTEL(t *testing.T) {
 		},
 	}}
 
-	_, errCall := client.Push(t.Context(), connect.NewRequest(req))
+	errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
 	require.NoError(t, errCall)
 
 	wgg := &sync.WaitGroup{}
 	for range 3 {
 		wgg.Go(func() {
-			_, errCall := client.Push(t.Context(), connect.NewRequest(req))
-			require.NoError(t, errCall)
+			errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
+			assert.NoError(t, errCall)
 		})
 	}
 	wgg.Wait()
@@ -863,7 +862,7 @@ func declarePipe(topic string) func(t *testing.T) {
 			},
 		}
 
-		_, err := client.Declare(t.Context(), connect.NewRequest(req))
+		err := client.Call("jobs.Declare", req, &jobsProto.JobsHandlerResponse{})
 		assert.NoError(t, err)
 	}
 }
@@ -897,7 +896,7 @@ func declarePipeCG(topic string) func(t *testing.T) {
 			},
 		}
 
-		_, err := client.Declare(t.Context(), connect.NewRequest(req))
+		err := client.Call("jobs.Declare", req, &jobsProto.JobsHandlerResponse{})
 		assert.NoError(t, err)
 	}
 }
