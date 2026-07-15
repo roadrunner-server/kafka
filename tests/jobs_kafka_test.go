@@ -138,7 +138,7 @@ func TestKafkaInitCG(t *testing.T) {
 	for range 100 {
 		wgg.Go(func() {
 			errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
-			require.NoError(t, errCall)
+			assert.NoError(t, errCall)
 		})
 	}
 	wgg.Wait()
@@ -238,7 +238,7 @@ func TestKafkaPQCG(t *testing.T) {
 	for range 100 {
 		wgg.Go(func() {
 			errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
-			require.NoError(t, errCall)
+			assert.NoError(t, errCall)
 		})
 	}
 	wgg.Wait()
@@ -348,7 +348,7 @@ func TestKafkaInit(t *testing.T) {
 	for range 1000 {
 		wgg.Go(func() {
 			errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
-			require.NoError(t, errCall)
+			assert.NoError(t, errCall)
 		})
 	}
 	wgg.Wait()
@@ -742,7 +742,7 @@ func TestKafkaOTEL(t *testing.T) {
 	for range 3 {
 		wgg.Go(func() {
 			errCall := client.Call("jobs.Push", req, &jobsProto.JobsHandlerResponse{})
-			require.NoError(t, errCall)
+			assert.NoError(t, errCall)
 		})
 	}
 	wgg.Wait()
