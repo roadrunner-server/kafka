@@ -645,7 +645,7 @@ func TestKafkaJobsError(t *testing.T) {
 
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
 	assert.Equal(t, 4, oLogger.FilterMessageSnippet("job processing was started").Len())
-	assert.Equal(t, 4, oLogger.FilterMessageSnippet("job was processed successfully").Len())
+	assert.Equal(t, 1, oLogger.FilterMessageSnippet("job was processed successfully").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was paused").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was resumed").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
