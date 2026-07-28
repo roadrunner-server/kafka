@@ -6,7 +6,7 @@ toolchain go1.26.5
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/docker/go-connections v0.8.0
+	github.com/docker/go-connections v0.8.1
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api-go/v6 v6.0.0-beta.13
 	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.2
