@@ -6,7 +6,7 @@ toolchain go1.26.5
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/docker/go-connections v0.8.0
+	github.com/docker/go-connections v0.8.1
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api-go/v6 v6.0.0-beta.13
 	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.2
@@ -41,7 +41,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.33.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.38.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.45.0 // indirect
-	github.com/aws/smithy-go v1.27.4 // indirect
+	github.com/aws/smithy-go v1.27.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -109,7 +109,7 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/genproto v0.0.0-20260724162435-b2f20204f0df // indirect
+	google.golang.org/genproto v0.0.0-20260727163830-6c54dddc4772 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )
