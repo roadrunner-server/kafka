@@ -21,7 +21,7 @@ require (
 	github.com/roadrunner-server/server/v6 v6.0.0-beta.6
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel/sdk v1.45.0
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 )
 
 replace github.com/roadrunner-server/kafka/v6 => ../
