@@ -82,25 +82,17 @@ jobs:
           keytool -keystore test-certs/kafka.truststore.pkcs12 -alias CARoot -import -file test-certs/rootCA.pem -storepass confluent -noprompt -storetype PKCS12
           echo "confluent" > test-certs/kafka_keystore_creds
           
-          docker compose -f env/docker-compose-kafka.yaml -f env/docker-compose-kafka-tls.yaml up -d
-          sleep 40
-          
-          if [ "$(docker ps -q -f status=running -f name=broker)" ]; then
-          echo "Kafka Docker container started successfully."
-             else
-                 echo "Failed to start Kafka Docker container."
-                 exit 1
-          fi
-          
-          go test -timeout 20m -v -race -cover -tags=debug -failfast -coverpkg=github.com/roadrunner-server/kafka/v6 -coverprofile=./coverage-ci/kafka.out -covermode=atomic jobs_kafka_test.go jobs_kafka_tls_test.go
-          
-          docker compose -f env/docker-compose-kafka.yaml -f env/docker-compose-kafka-tls.yaml down
+          docker compose -f env/docker-compose-kafka.yaml up -d --wait
+          go test -timeout 20m -v -race -cover -tags=debug -coverpkg=github.com/roadrunner-server/kafka/v6/... -coverprofile=./coverage-ci/kafka.out -covermode=atomic -skip TestDurability ./...
+
+      - name: Run unit tests with coverage
+        run: go test -timeout 5m -v -race -cover -tags=debug -coverpkg=./... -coverprofile=./tests/coverage-ci/kafka_u.out -covermode=atomic ./...
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v7
         with:
-          name: coverage
-          path: ./tests/coverage-ci/kafka.out
+          name: coverage-kafka
+          path: ./tests/coverage-ci/
 
   codecov:
     name: Upload codecov
@@ -116,8 +108,9 @@ jobs:
       - name: Download code coverage results
         uses: actions/download-artifact@v8
         with:
-          name: coverage
+          pattern: coverage-*
           path: coverage
+          merge-multiple: true
 
       - run: |
           echo 'mode: atomic' > summary.txt
@@ -130,6 +123,12 @@ jobs:
             }
           ' summary.txt > summary.filtered.txt
           mv summary.filtered.txt summary.txt
+          # a profile that maps to no plugin source uploads fine and reports 0%
+          blocks=$(($(wc -l < summary.txt) - 1))
+          if [ "$blocks" -lt 10 ]; then
+            echo "::error::coverage summary holds $blocks blocks, the profile does not map to plugin sources"
+            exit 1
+          fi
 
       - name: upload to codecov
         uses: codecov/codecov-action@v7 # Docs: <https://github.com/codecov/codecov-action>

@@ -65,13 +65,13 @@ jobs:
         run: |
           cd tests
           mkdir ./coverage-ci
-          go test -timeout 20m -v -race -cover -tags=debug -failfast -coverpkg=github.com/roadrunner-server/kafka/v6 -coverprofile=./coverage-ci/kafka_dur.out -covermode=atomic jobs_kafka_durability_test.go
+          go test -timeout 20m -v -race -cover -tags=debug -run TestDurability -coverpkg=github.com/roadrunner-server/kafka/v6/... -coverprofile=./coverage-ci/kafka_dur.out -covermode=atomic ./...
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v7
         with:
-          name: coverage
-          path: ./tests/coverage-ci/kafka_dur.out
+          name: coverage-durability
+          path: ./tests/coverage-ci/
 
   codecov:
     name: Upload codecov
@@ -87,8 +87,9 @@ jobs:
       - name: Download code coverage results
         uses: actions/download-artifact@v8
         with:
-          name: coverage
+          pattern: coverage-*
           path: coverage
+          merge-multiple: true
 
       - run: |
           echo 'mode: atomic' > summary.txt
@@ -101,6 +102,12 @@ jobs:
             }
           ' summary.txt > summary.filtered.txt
           mv summary.filtered.txt summary.txt
+          # a profile that maps to no plugin source uploads fine and reports 0%
+          blocks=$(($(wc -l < summary.txt) - 1))
+          if [ "$blocks" -lt 10 ]; then
+            echo "::error::coverage summary holds $blocks blocks, the profile does not map to plugin sources"
+            exit 1
+          fi
 
       - name: upload to codecov
         uses: codecov/codecov-action@v7 # Docs: <https://github.com/codecov/codecov-action>
