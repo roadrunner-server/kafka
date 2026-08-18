@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
+	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v1"
 	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kadm"
@@ -73,7 +73,7 @@ func ResumePipes(address string, pipes ...string) func(t *testing.T) {
 		client := NewJobsClient(t, address)
 		require.NoError(t, client.Call("jobs.Resume",
 			&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)},
-			&jobsProto.JobsHandlerResponse{}))
+			&jobsProto.Empty{}))
 	}
 }
 
@@ -82,7 +82,7 @@ func PausePipelines(address string, pipes ...string) func(t *testing.T) {
 		client := NewJobsClient(t, address)
 		require.NoError(t, client.Call("jobs.Pause",
 			&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)},
-			&jobsProto.JobsHandlerResponse{}))
+			&jobsProto.Empty{}))
 	}
 }
 
@@ -107,7 +107,7 @@ func PushToTopic(pipeline string, topic string, autoAck bool, address string) fu
 		client := NewJobsClient(t, address)
 		require.NoError(t, client.Call("jobs.Push",
 			&jobsProto.PushRequest{Job: dummyJob(pipeline, topic, autoAck)},
-			&jobsProto.JobsHandlerResponse{}))
+			&jobsProto.Empty{}))
 	}
 }
 
@@ -118,7 +118,7 @@ func PushExpectError(address string, pipeline string) func(t *testing.T) {
 		client := NewJobsClient(t, address)
 		require.Error(t, client.Call("jobs.Push",
 			&jobsProto.PushRequest{Job: dummyJob(pipeline, pipeline, false)},
-			&jobsProto.JobsHandlerResponse{}))
+			&jobsProto.Empty{}))
 	}
 }
 
@@ -132,7 +132,7 @@ func PushEventually(t *testing.T, address string, pipeline string) {
 
 		return client.Call("jobs.Push",
 			&jobsProto.PushRequest{Job: dummyJob(pipeline, pipeline, false)},
-			&jobsProto.JobsHandlerResponse{}) == nil
+			&jobsProto.Empty{}) == nil
 	}, redialTimeout, redialTick, "the producer never recovered after the outage")
 }
 
@@ -141,7 +141,7 @@ func dummyJob(pipeline string, topic string, autoAck bool) *jobsProto.Job {
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
-		Headers: map[string]*jobsProto.JobHeaderValue{"test": {Values: []string{"test2"}}},
+		Headers: map[string]*jobsProto.HeaderValue{"test": {Value: []string{"test2"}}},
 		Options: &jobsProto.Options{
 			AutoAck:  autoAck,
 			Priority: 1,
@@ -179,6 +179,6 @@ func DeclarePipe(address string, pipeline string, topic string, withGroup bool) 
 
 		require.NoError(t, NewJobsClient(t, address).Call("jobs.Declare",
 			&jobsProto.DeclareRequest{Pipeline: options},
-			&jobsProto.JobsHandlerResponse{}))
+			&jobsProto.Empty{}))
 	}
 }
