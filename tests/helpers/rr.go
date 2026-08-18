@@ -155,6 +155,16 @@ func Start(t *testing.T, cfgPath string, plugins []any, opts ...Option) (*RR, fu
 	cont, rr, bc := newContainer(t, cfgPath, plugins, opts)
 	require.NoError(t, cont.Init())
 
+	// the rpc listener of the previous test can still be closing; booting into
+	// it would let the probe pass against the dying container. Containers that
+	// failed Serve leak their listener (roadrunner#2378), so their configs use
+	// ports of their own.
+	if bc.probe != nil {
+		require.Eventually(t, func() bool {
+			return !bc.probe(context.Background())
+		}, probeTimeout, probeTick, "the rpc port is still taken by a previous container")
+	}
+
 	ch, err := cont.Serve()
 	require.NoError(t, err)
 
