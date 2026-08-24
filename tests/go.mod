@@ -9,16 +9,16 @@ require (
 	github.com/docker/go-connections v0.8.1
 	github.com/google/uuid v1.6.0
 	github.com/roadrunner-server/api-go/v6 v6.0.0-beta.14
-	github.com/roadrunner-server/config/v6 v6.0.0-beta.3
+	github.com/roadrunner-server/config/v6 v6.0.0-beta.4
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/goridge/v4 v4.0.0-beta.3
-	github.com/roadrunner-server/informer/v6 v6.0.0-beta.4
-	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.9
+	github.com/roadrunner-server/informer/v6 v6.0.0-beta.5
+	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.10
 	github.com/roadrunner-server/kafka/v6 v6.0.0
-	github.com/roadrunner-server/logger/v6 v6.0.0-beta.3
-	github.com/roadrunner-server/resetter/v6 v6.0.0-beta.5
-	github.com/roadrunner-server/rpc/v6 v6.0.0-beta.5
-	github.com/roadrunner-server/server/v6 v6.0.0-beta.6
+	github.com/roadrunner-server/logger/v6 v6.0.0-beta.4
+	github.com/roadrunner-server/resetter/v6 v6.0.0-beta.6
+	github.com/roadrunner-server/rpc/v6 v6.0.0-beta.6
+	github.com/roadrunner-server/server/v6 v6.0.0-beta.7
 	github.com/stretchr/testify v1.12.1
 	github.com/twmb/franz-go v1.21.6
 	github.com/twmb/franz-go/pkg/kadm v1.18.0
