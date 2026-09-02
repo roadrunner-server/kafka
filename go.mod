@@ -2,7 +2,7 @@ module github.com/roadrunner-server/kafka/v6
 
 go 1.27
 
-toolchain go1.27.0
+toolchain go1.27.1
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.2

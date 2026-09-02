@@ -2,7 +2,7 @@ module tests
 
 go 1.27
 
-toolchain go1.27.0
+toolchain go1.27.1
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
