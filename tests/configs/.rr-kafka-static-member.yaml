@@ -1,0 +1,35 @@
+version: '3'
+rpc:
+  listen: tcp://127.0.0.1:6004
+server:
+  command: "php php_test_files/jobs/jobs_ok.php"
+  relay: "pipes"
+logs:
+  level: debug
+  encoding: console
+  mode: development
+kafka:
+  brokers: ["127.0.0.1:9092"]
+jobs:
+  num_pollers: 10
+  pipeline_size: 100000
+  timeout: 100
+  pool:
+    num_workers: 2
+    allocate_timeout: 60s
+    destroy_timeout: 60s
+  pipelines:
+    test-fence:
+      driver: kafka
+      config:
+        priority: 1
+        auto_create_topics_enable: true
+        group_options:
+          group_id: bar-fence
+          instance_id: rr-fence-1
+          block_rebalance_on_poll: true
+        consumer_options:
+          topics: ["test-fence"]
+          consumer_offset:
+            type: AtStart
+  consume: ["test-fence"]

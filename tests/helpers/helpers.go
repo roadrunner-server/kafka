@@ -182,3 +182,90 @@ func DeclarePipe(address string, pipeline string, topic string, withGroup bool) 
 			&jobsProto.Empty{}))
 	}
 }
+
+// newAdmin returns an admin client for the compose broker. The test closes the
+// client when it ends.
+func newAdmin(t *testing.T) *kadm.Client {
+	t.Helper()
+
+	client, err := kgo.NewClient(kgo.SeedBrokers(BrokerAddr))
+	require.NoError(t, err)
+
+	adm := kadm.NewClient(client)
+	t.Cleanup(adm.Close)
+
+	return adm
+}
+
+// RemoveGroupMember removes the static member with the instance id from the
+// group. The broker answers the next heartbeat with UNKNOWN_MEMBER_ID. A
+// coordinator can return this error after a broker restart.
+func RemoveGroupMember(t *testing.T, group string, instanceID string) {
+	t.Helper()
+
+	resp, err := newAdmin(t).LeaveGroup(t.Context(), kadm.LeaveGroup(group).InstanceIDs(instanceID))
+	require.NoError(t, err)
+	require.NoError(t, resp.Error())
+}
+
+// WaitCommitted waits for the group to commit at least the specified offset.
+// A member with no pending commits cannot restore its session through the
+// commit path. This keeps the member removal deterministic.
+func WaitCommitted(t *testing.T, group string, topic string, partition int32, at int64) {
+	t.Helper()
+
+	adm := newAdmin(t)
+	require.Eventually(t, func() bool {
+		offsets, err := adm.FetchOffsets(t.Context(), group)
+		if err != nil {
+			return false
+		}
+
+		o, ok := offsets.Lookup(topic, partition)
+
+		return ok && o.Err == nil && o.At >= at
+	}, time.Second*30, time.Millisecond*500, "the group did not commit offset %d for %s/%d", at, topic, partition)
+}
+
+// GroupMembers returns the members of the group.
+func GroupMembers(t *testing.T, group string) []kadm.DescribedGroupMember {
+	t.Helper()
+
+	described, err := newAdmin(t).DescribeGroups(t.Context(), group)
+	require.NoError(t, err)
+
+	g, ok := described[group]
+	require.True(t, ok, "group %s was not described", group)
+	require.NoError(t, g.Err)
+
+	return g.Members
+}
+
+// GroupAssignedPartitions returns the partitions assigned to the group members.
+func GroupAssignedPartitions(t *testing.T, group string) kadm.TopicsSet {
+	t.Helper()
+
+	described, err := newAdmin(t).DescribeGroups(t.Context(), group)
+	require.NoError(t, err)
+
+	return described.AssignedPartitions()
+}
+
+// StatsFor returns the reported state of the pipeline. It fails the test when
+// the pipeline is not reported.
+func StatsFor(t *testing.T, address string, pipeline string) *jobsProto.Stat {
+	t.Helper()
+
+	resp := &jobsProto.Stats{}
+	require.NoError(t, NewJobsClient(t, address).Call("jobs.Stat", &jobsProto.Empty{}, resp))
+
+	for _, st := range resp.GetStats() {
+		if st.GetPipeline() == pipeline {
+			return st
+		}
+	}
+
+	require.FailNowf(t, "pipeline not reported", "no stats for %q", pipeline)
+
+	return nil
+}
