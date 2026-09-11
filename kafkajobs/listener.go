@@ -35,12 +35,8 @@ func (d *Driver) listen() error {
 	for {
 		fetches := d.kafkaClient.PollRecords(ctx, 100)
 		if fetches.IsClientClosed() {
-			// recreate pipeline on fail
-			d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
-			d.log.Debug("kafka client closed, sending pipeline restart command")
-
-			// remove all listeners
 			d.listeners.Store(0)
+			d.requestRestart()
 
 			return errors.New("client is closed, stopping the pipeline")
 		}
@@ -111,11 +107,8 @@ func (d *Driver) listen() error {
 						"description", regErr.Description,
 						"message", regErr.Message)
 
-					// error is unrecoverable, recreate a pipeline
-					d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
-
-					// remove all listeners
 					d.listeners.Store(0)
+					d.requestRestart()
 
 					return errs[i].Err
 				}
@@ -125,6 +118,9 @@ func (d *Driver) listen() error {
 					"error", errs[i].Err,
 					"topic", errs[i].Topic,
 					"partition", errs[i].Partition)
+
+				d.listeners.Store(0)
+
 				return nil
 
 			default:
@@ -150,6 +146,20 @@ func (d *Driver) listen() error {
 			d.kafkaClient.AllowRebalance()
 		}
 	}
+}
+
+// requestRestart asks the JOBS plugin to recreate the pipeline through the
+// global events bus. A stopped driver must not restart a pipeline that the
+// JOBS plugin destroys or restarts.
+func (d *Driver) requestRestart() {
+	if d.stopped.Load() == 1 {
+		d.log.Debug("driver is stopped, the pipeline restart command was not sent")
+		return
+	}
+
+	pipe := *d.pipeline.Load()
+	d.eventBus.Send(events.NewEvent(events.EventJOBSDriverCommand, pipe.Name(), restartStr))
+	d.log.Info("pipeline restart command was sent", "pipeline", pipe.Name())
 }
 
 func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, stopped *atomic.Uint64) *Item {

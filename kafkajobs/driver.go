@@ -39,7 +39,6 @@ type Driver struct {
 	prop     propagation.TextMapPropagator
 
 	// events
-	eventsCh chan events.Event
 	eventBus *events.Bus
 	id       string
 
@@ -101,7 +100,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 	}
 	// PARSE CONFIGURATION END -------
 
-	eventsCh := make(chan events.Event, 1)
 	eventBus, id := events.NewEventBus()
 
 	jb := &Driver{
@@ -111,7 +109,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		pq:     pq,
 
 		// events
-		eventsCh: eventsCh,
 		eventBus: eventBus,
 		id:       id,
 
@@ -213,7 +210,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		return nil, errors.E(op, err)
 	}
 
-	eventsCh := make(chan events.Event, 1)
 	eventBus, id := events.NewEventBus()
 
 	jb := &Driver{
@@ -223,7 +219,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		pq:     pq,
 
 		// events
-		eventsCh: eventsCh,
 		eventBus: eventBus,
 		id:       id,
 
@@ -265,16 +260,24 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	go func() {
-		err := d.listen()
-		if err != nil {
-			d.log.Error("listener error", "error", err)
-		}
-	}()
+	d.startListener()
 
 	d.listeners.Store(1)
 	d.log.Debug("pipeline was started", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 	return nil
+}
+
+// startListener starts one listener for Run and Resume. A shared listener
+// preserves the block_rebalance_on_poll guarantee across pause and resume calls.
+func (d *Driver) startListener() {
+	d.once.Do(func() {
+		go func() {
+			err := d.listen()
+			if err != nil {
+				d.log.Error("listener error", "error", err)
+			}
+		}()
+	})
 }
 
 func (d *Driver) Push(ctx context.Context, job jobs.Message) error {
@@ -360,14 +363,7 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 		return errors.Str("kafka listener is already in the active state")
 	}
 
-	d.once.Do(func() {
-		go func() {
-			err := d.listen()
-			if err != nil {
-				d.log.Error("listener error", "error", err)
-			}
-		}()
-	})
+	d.startListener()
 
 	d.mu.Lock()
 	if d.cfg.ConsumerOpts != nil {
