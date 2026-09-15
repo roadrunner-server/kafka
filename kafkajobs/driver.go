@@ -40,18 +40,25 @@ type Driver struct {
 
 	// events
 	eventBus *events.Bus
-	id       string
 
 	// kafka config
 	kafkaClient    *kgo.Client
 	kafkaCancelCtx context.CancelFunc
 	recordsCh      chan *kgo.Record
 	requeueCh      chan *Item
+	// done is closed by Stop and ends the handler goroutines
+	done chan struct{}
 
 	listeners atomic.Uint32
 	stopped   atomic.Uint64
+	// listening is set while the listener goroutine runs
+	listening atomic.Bool
+	// restarting is set when the listener stopped on a non-retriable error
+	// and the driver waits for the JOBS plugin to recreate the pipeline
+	restarting atomic.Bool
 
-	once sync.Once
+	restartDelay  time.Duration
+	restartResend time.Duration
 }
 
 type Configurer interface {
@@ -100,7 +107,7 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 	}
 	// PARSE CONFIGURATION END -------
 
-	eventBus, id := events.NewEventBus()
+	eventBus, _ := events.NewEventBus()
 
 	jb := &Driver{
 		tracer: tracer,
@@ -110,11 +117,13 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 
 		// events
 		eventBus: eventBus,
-		id:       id,
 
-		recordsCh: make(chan *kgo.Record, 100),
-		requeueCh: make(chan *Item, 10),
-		cfg:       &conf,
+		recordsCh:     make(chan *kgo.Record, 100),
+		requeueCh:     make(chan *Item, 10),
+		done:          make(chan struct{}),
+		restartDelay:  defaultRestartDelay,
+		restartResend: defaultRestartResend,
+		cfg:           &conf,
 	}
 
 	jb.kafkaClient, err = kgo.NewClient(opts...)
@@ -124,6 +133,7 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 
 	err = jb.ping(jb.kafkaClient, pipeline)
 	if err != nil {
+		jb.kafkaClient.Close()
 		return nil, err
 	}
 
@@ -210,7 +220,7 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		return nil, errors.E(op, err)
 	}
 
-	eventBus, id := events.NewEventBus()
+	eventBus, _ := events.NewEventBus()
 
 	jb := &Driver{
 		tracer: tracer,
@@ -220,11 +230,13 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 
 		// events
 		eventBus: eventBus,
-		id:       id,
 
-		recordsCh: make(chan *kgo.Record, 100),
-		requeueCh: make(chan *Item, 10),
-		cfg:       &conf,
+		recordsCh:     make(chan *kgo.Record, 100),
+		requeueCh:     make(chan *Item, 10),
+		done:          make(chan struct{}),
+		restartDelay:  defaultRestartDelay,
+		restartResend: defaultRestartResend,
+		cfg:           &conf,
 	}
 
 	jb.kafkaClient, err = kgo.NewClient(opts...)
@@ -234,6 +246,7 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 
 	err = jb.ping(jb.kafkaClient, pipeline)
 	if err != nil {
+		jb.kafkaClient.Close()
 		return nil, err
 	}
 
@@ -269,15 +282,23 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 
 // startListener starts one listener for Run and Resume. A shared listener
 // preserves the block_rebalance_on_poll guarantee across pause and resume calls.
+// A listener that exited is started again. A listener that stopped on a
+// non-retriable error requests the pipeline restart after it exited.
 func (d *Driver) startListener() {
-	d.once.Do(func() {
-		go func() {
-			err := d.listen()
-			if err != nil {
-				d.log.Error("listener error", "error", err)
-			}
-		}()
-	})
+	if !d.listening.CompareAndSwap(false, true) {
+		return
+	}
+
+	go func() {
+		err := d.listen()
+		if err != nil {
+			d.log.Error("listener error", "error", err)
+		}
+
+		if d.restarting.Load() {
+			d.requestRestart()
+		}
+	}()
 }
 
 func (d *Driver) Push(ctx context.Context, job jobs.Message) error {
@@ -326,9 +347,7 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := d.listeners.Load()
-	// no active listeners
-	if l == 0 {
+	if !d.listeners.CompareAndSwap(1, 0) {
 		return errors.Str("no active listeners, nothing to pause")
 	}
 
@@ -337,9 +356,6 @@ func (d *Driver) Pause(ctx context.Context, p string) error {
 		d.kafkaClient.PauseFetchTopics(d.cfg.ConsumerOpts.Topics...)
 	}
 	d.mu.Unlock()
-
-	// remove active listener
-	d.listeners.Add(^uint32(0))
 
 	d.log.Debug("pipeline was paused", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
@@ -355,6 +371,14 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 	pipe := *d.pipeline.Load()
 	if pipe.Name() != p {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
+	}
+
+	if d.stopped.Load() == 1 {
+		return errors.Str("kafka pipeline is stopped, nothing to resume")
+	}
+
+	if d.restarting.Load() {
+		return errors.Str("kafka pipeline waits for a restart, nothing to resume")
 	}
 
 	l := d.listeners.Load()
@@ -381,34 +405,44 @@ func (d *Driver) Resume(ctx context.Context, p string) error {
 
 func (d *Driver) Stop(ctx context.Context) error {
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "kafka_stop")
-
-	d.mu.Lock()
-	// set the stopped state
-	d.stopped.Store(1)
-
-	defer func() {
-		close(d.requeueCh)
-		close(d.recordsCh)
-		d.mu.Unlock()
-		span.End()
-	}()
+	defer span.End()
 
 	start := time.Now().UTC()
+
+	d.mu.Lock()
+	// The JOBS plugin calls Stop from the restart handler and from Destroy or
+	// the shutdown. The calls can overlap.
+	if d.stopped.Swap(1) == 1 {
+		d.mu.Unlock()
+		return nil
+	}
 
 	if d.kafkaCancelCtx != nil {
 		// cancel the consumer
 		d.kafkaCancelCtx()
 	}
+	d.mu.Unlock()
 
-	d.kafkaClient.CloseAllowingRebalance()
+	// The close leaves the group and commits the marked offsets. Stop waits for
+	// the close until ctx expires. A close that runs past the deadline
+	// completes in the background.
+	closed := make(chan struct{})
+	go func() {
+		d.kafkaClient.CloseAllowingRebalance()
+		close(d.done)
+		close(closed)
+	}()
 
-	// properly check for the listeners
+	select {
+	case <-closed:
+	case <-ctx.Done():
+		d.log.Warn("kafka client close did not complete in time, it completes in the background", "error", ctx.Err())
+	}
+
 	pipe := *d.pipeline.Load()
 
 	// remove all pending JOBS associated with the pipeline
 	_ = d.pq.Remove(pipe.Name())
-	// unsubscribe from the event bus
-	d.eventBus.Unsubscribe(d.id)
 
 	d.log.Debug("pipeline was stopped", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
@@ -496,21 +530,30 @@ func topics(cfg *config) string {
 }
 
 func (d *Driver) recordsHandler() {
-	for rec := range d.recordsCh {
-		if d.cfg.GroupOpts != nil {
-			d.kafkaClient.MarkCommitRecords(rec)
-			continue
+	for {
+		select {
+		case <-d.done:
+			return
+		case rec := <-d.recordsCh:
+			if d.cfg.GroupOpts != nil {
+				d.kafkaClient.MarkCommitRecords(rec)
+			}
 		}
 	}
 }
 
 func (d *Driver) requeueHandler() {
-	for item := range d.requeueCh {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		err := d.handleItem(ctx, item)
-		cancel()
-		if err != nil {
-			d.log.Error("failed to requeue the job", "error", err)
+	for {
+		select {
+		case <-d.done:
+			return
+		case item := <-d.requeueCh:
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			err := d.handleItem(ctx, item)
+			cancel()
+			if err != nil {
+				d.log.Error("failed to requeue the job", "error", err)
+			}
 		}
 	}
 }

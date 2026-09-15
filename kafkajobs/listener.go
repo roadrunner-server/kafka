@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"sync/atomic"
+	"time"
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/events"
@@ -16,6 +17,11 @@ import (
 
 const (
 	restartStr string = "restart"
+	// defaultRestartDelay bounds the restart rate when the error persists
+	// across restarts.
+	defaultRestartDelay = time.Second * 10
+	// defaultRestartResend is the interval between repeated restart commands.
+	defaultRestartResend = time.Second * 10
 )
 
 func (d *Driver) listen() error {
@@ -26,6 +32,7 @@ func (d *Driver) listen() error {
 	d.mu.Unlock()
 
 	defer func() {
+		d.listening.Store(false)
 		if d.cfg.GroupOpts != nil {
 			d.kafkaClient.AllowRebalance()
 		}
@@ -36,7 +43,6 @@ func (d *Driver) listen() error {
 		fetches := d.kafkaClient.PollRecords(ctx, 100)
 		if fetches.IsClientClosed() {
 			d.listeners.Store(0)
-			d.requestRestart()
 
 			return errors.New("client is closed, stopping the pipeline")
 		}
@@ -44,7 +50,7 @@ func (d *Driver) listen() error {
 		// Errors return all errors in a fetch with the topic and partition that
 		// errored.
 		//
-		// There are four classes of errors possible:
+		// There are five classes of errors possible:
 		//
 		//  1. a normal kerr.Error; these are usually the non-retrievable kerr.Errors,
 		//     but theoretically a non-retrievable error can be fixed at runtime (auth
@@ -65,6 +71,11 @@ func (d *Driver) listen() error {
 		//     is returned from every Poll call if the client has been closed.
 		//     A corresponding helper function IsClientClosed can be used to detect
 		//     this error.
+		//
+		//  5. an injected *ErrGroupSession; the client lost its group session and
+		//     rejoins the group on its own. The error unwraps to the kerr.Error
+		//     that caused the loss.
+		//     https://pkg.go.dev/github.com/twmb/franz-go/pkg/kgo#ErrGroupSession
 
 		var edl *kgo.ErrDataLoss
 		var regErr *kerr.Error
@@ -74,6 +85,13 @@ func (d *Driver) listen() error {
 			switch {
 			case errors.As(errs[i].Err, &edl):
 				d.log.Warn("restarting consumer",
+					"topic", errs[i].Topic,
+					"partition", errs[i].Partition,
+					"error", errs[i].Err)
+				continue
+
+			case groupRejoins(errs[i].Err):
+				d.log.Warn("group session was lost, the consumer rejoins the group",
 					"topic", errs[i].Topic,
 					"partition", errs[i].Partition,
 					"error", errs[i].Err)
@@ -108,7 +126,7 @@ func (d *Driver) listen() error {
 						"message", regErr.Message)
 
 					d.listeners.Store(0)
-					d.requestRestart()
+					d.restarting.Store(true)
 
 					return errs[i].Err
 				}
@@ -148,18 +166,45 @@ func (d *Driver) listen() error {
 	}
 }
 
-// requestRestart asks the JOBS plugin to recreate the pipeline through the
-// global events bus. A stopped driver must not restart a pipeline that the
-// JOBS plugin destroys or restarts.
-func (d *Driver) requestRestart() {
-	if d.stopped.Load() == 1 {
-		d.log.Debug("driver is stopped, the pipeline restart command was not sent")
-		return
+// groupRejoins reports whether err is a lost group session that the kafka
+// client restores by rejoining the group.
+func groupRejoins(err error) bool {
+	session, ok := errors.AsType[*kgo.ErrGroupSession](err)
+	if !ok {
+		return false
 	}
 
-	pipe := *d.pipeline.Load()
-	d.eventBus.Send(events.NewEvent(events.EventJOBSDriverCommand, pipe.Name(), restartStr))
-	d.log.Info("pipeline restart command was sent", "pipeline", pipe.Name())
+	return errors.Is(session.Err, kerr.UnknownMemberID) || errors.Is(session.Err, kerr.IllegalGeneration)
+}
+
+// requestRestart asks the JOBS plugin to recreate the pipeline through the
+// global events bus. It returns when the JOBS plugin stops this driver. The
+// first command waits for the restart delay. This bounds the restart rate when
+// the error persists across restarts. The bus drops a command when the JOBS
+// plugin is busy. The command is sent again until the driver is stopped. The
+// stopped check is best-effort. A Destroy that runs at the same time lets one
+// command through, and the JOBS plugin rejects it with a warning.
+func (d *Driver) requestRestart() {
+	// The JOBS plugin writes to the pipeline when it recreates the pipeline.
+	// The name is read once, before the driver is stopped.
+	name := (*d.pipeline.Load()).Name()
+	delay := d.restartDelay
+
+	for {
+		select {
+		case <-d.done:
+		case <-time.After(delay):
+		}
+
+		if d.stopped.Load() == 1 {
+			d.log.Debug("driver is stopped, the pipeline restart command was not sent", "pipeline", name)
+			return
+		}
+
+		d.eventBus.Send(events.NewEvent(events.EventJOBSDriverCommand, name, restartStr))
+		d.log.Info("pipeline restart command was sent", "pipeline", name)
+		delay = d.restartResend
+	}
 }
 
 func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, stopped *atomic.Uint64) *Item {
