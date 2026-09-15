@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -12,8 +13,10 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
+	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -28,7 +31,7 @@ type broker struct {
 	id  string
 }
 
-func startBroker(t *testing.T) *broker {
+func startBroker(t *testing.T, extraEnv ...string) *broker {
 	t.Helper()
 
 	ctx := t.Context()
@@ -44,12 +47,13 @@ func startBroker(t *testing.T) *broker {
 
 	pull, err := cli.ImagePull(ctx, "confluentinc/cp-kafka:8.1.1", image.PullOptions{})
 	require.NoError(t, err)
-	_, _ = io.Copy(io.Discard, pull)
+	err = jsonmessage.DisplayJSONMessagesStream(pull, io.Discard, 0, false, nil)
 	_ = pull.Close()
+	require.NoError(t, err)
 
 	k, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: "confluentinc/cp-kafka:8.1.1",
-		Env: []string{
+		Env: append([]string{
 			"KAFKA_NODE_ID=1",
 			"KAFKA_PROCESS_ROLES=broker,controller",
 			"KAFKA_CONTROLLER_QUORUM_VOTERS=1@broker:29093",
@@ -63,7 +67,7 @@ func startBroker(t *testing.T) *broker {
 			"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1",
 			"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1",
 			"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1",
-		},
+		}, extraEnv...),
 	}, &container.HostConfig{
 		NetworkMode: container.NetworkMode(networkName),
 		PortBindings: nat.PortMap{
@@ -172,4 +176,90 @@ func TestDurabilityKafka(t *testing.T) {
 
 func TestDurabilityKafkaCG(t *testing.T) {
 	redialRoundTrip(t, "configs/.rr-kafka-durability-redial-cg.yaml", "test-11", "test-22")
+}
+
+func TestDurabilityKafkaCGReadPermissionRecovery(t *testing.T) {
+	startBroker(t,
+		"KAFKA_AUTHORIZER_CLASS_NAME=org.apache.kafka.metadata.authorizer.StandardAuthorizer",
+		"KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND=true",
+	)
+	cl, err := kgo.NewClient(kgo.SeedBrokers(helpers.BrokerAddr), kgo.RecordPartitioner(kgo.ManualPartitioner()))
+	require.NoError(t, err)
+	t.Cleanup(cl.Close)
+	admin := kadm.NewClient(cl)
+	_, err = admin.CreateTopic(t.Context(), 3, 1, nil, "foo")
+	require.NoError(t, err)
+
+	rr, _ := boot(t, "configs/.rr-kafka-init-cg.yaml", durabilityAddr)
+
+	producePartitionBatch(t, cl, 0)
+	waitPartitionOffsets(t, admin, 10)
+	rr.WaitLog(t, "job was processed successfully", 30)
+
+	allow := kadm.NewACLs().Topics("foo").Allow("User:ANONYMOUS").Operations(kadm.OpAll).ResourcePatternType(kadm.ACLPatternLiteral)
+	allowed, err := admin.CreateACLs(t.Context(), allow)
+	require.NoError(t, err)
+	require.Len(t, allowed, 1)
+	require.NoError(t, allowed[0].Err)
+
+	deny := kadm.NewACLs().Topics("foo").Deny("User:ANONYMOUS").DenyHosts("*").Operations(kadm.OpRead).ResourcePatternType(kadm.ACLPatternLiteral)
+	denied, err := admin.CreateACLs(t.Context(), deny)
+	require.NoError(t, err)
+	require.Len(t, denied, 1)
+	require.NoError(t, denied[0].Err)
+	rr.WaitLog(t, "non-recoverable consumer error", 1)
+	rr.WaitLog(t, "kafka listener stopped", 1)
+
+	deleted, err := admin.DeleteACLs(t.Context(), deny)
+	require.NoError(t, err)
+	require.Len(t, deleted, 1)
+	require.NoError(t, deleted[0].Err)
+	require.Len(t, deleted[0].Deleted, 1)
+	require.NoError(t, deleted[0].Deleted[0].Err)
+
+	producePartitionBatch(t, cl, 10)
+	waitPartitionOffsets(t, admin, 20)
+	rr.RequireLogCount(t, "job was processed successfully", 60)
+}
+
+func producePartitionBatch(t *testing.T, cl *kgo.Client, first int) {
+	t.Helper()
+
+	var records []*kgo.Record
+	for partition := range int32(3) {
+		for n := range 10 {
+			records = append(records, &kgo.Record{
+				Topic:     "foo",
+				Partition: partition,
+				Key:       fmt.Appendf(nil, "p%d-%d", partition, first+n),
+				Value:     []byte(`{"hello":"world"}`),
+				Headers: []kgo.RecordHeader{
+					{Key: "rr_job", Value: []byte("some/php/namespace")},
+					{Key: "rr_pipeline", Value: []byte("test-1")},
+				},
+			})
+		}
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	require.NoError(t, cl.ProduceSync(ctx, records...).FirstErr())
+}
+
+func waitPartitionOffsets(t *testing.T, admin *kadm.Client, want int64) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		offsets, err := admin.FetchOffsets(ctx, "bar")
+		if err != nil || len(offsets["foo"]) != 3 {
+			return false
+		}
+		for _, offset := range offsets["foo"] {
+			if offset.Err != nil || offset.At != want {
+				return false
+			}
+		}
+		return true
+	}, time.Minute, time.Second, "each partition must commit offset %d", want)
 }
