@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kadm"
@@ -46,8 +47,9 @@ func startBroker(t *testing.T, extraEnv ...string) *broker {
 
 	pull, err := cli.ImagePull(ctx, "confluentinc/cp-kafka:8.1.1", image.PullOptions{})
 	require.NoError(t, err)
-	_, _ = io.Copy(io.Discard, pull)
+	err = jsonmessage.DisplayJSONMessagesStream(pull, io.Discard, 0, false, nil)
 	_ = pull.Close()
+	require.NoError(t, err)
 
 	k, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: "confluentinc/cp-kafka:8.1.1",
