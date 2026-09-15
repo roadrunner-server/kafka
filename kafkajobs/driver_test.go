@@ -173,3 +173,14 @@ func TestStopReturnsWithinContext(t *testing.T) {
 	require.NoError(t, d.Stop(ctx))
 	require.Less(t, time.Since(start), time.Second*5)
 }
+
+// TestFromPipelineRejectsEmptyName asserts that a pipeline declared without a
+// name is rejected. The JOBS plugin validates only the driver of a declared
+// pipeline, and events.NewEvent returns a typed nil event for an empty name.
+func TestFromPipelineRejectsEmptyName(t *testing.T) {
+	var pipe jobs.Pipeline = &testPipeline{}
+
+	d, err := FromPipeline(t.Context(), nil, pipe, slog.New(&recordingHandler{}), &testConfigurer{}, &testQueue{})
+	require.Nil(t, d)
+	require.ErrorContains(t, err, "pipeline name is required")
+}

@@ -161,6 +161,11 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		return nil, errors.E(op, errors.Str("no global configuration found, docs: https://roadrunner.dev/docs/queues-kafka/2023.x/en"))
 	}
 
+	// The JOBS plugin does not validate the name of a declared pipeline.
+	if pipeline.Name() == "" {
+		return nil, errors.E(op, errors.Str("pipeline name is required"))
+	}
+
 	var conf config
 	// PARSE CONFIGURATION START -------
 	err := cfg.UnmarshalKey(pluginName, &conf)
