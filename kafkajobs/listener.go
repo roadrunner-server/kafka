@@ -36,7 +36,7 @@ func (d *Driver) listen() error {
 		fetches := d.kafkaClient.PollRecords(ctx, 100)
 		if fetches.IsClientClosed() {
 			// recreate pipeline on fail
-			d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
+			d.eventBus.Send(events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr))
 			d.log.Debug("kafka client closed, sending pipeline restart command")
 
 			// remove all listeners
@@ -112,7 +112,7 @@ func (d *Driver) listen() error {
 						"message", regErr.Message)
 
 					// error is unrecoverable, recreate a pipeline
-					d.eventsCh <- events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr)
+					d.eventBus.Send(events.NewEvent(events.EventJOBSDriverCommand, (*d.pipeline.Load()).Name(), restartStr))
 
 					// remove all listeners
 					d.listeners.Store(0)

@@ -39,7 +39,6 @@ type Driver struct {
 	prop     propagation.TextMapPropagator
 
 	// events
-	eventsCh chan events.Event
 	eventBus *events.Bus
 	id       string
 
@@ -101,7 +100,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 	}
 	// PARSE CONFIGURATION END -------
 
-	eventsCh := make(chan events.Event, 1)
 	eventBus, id := events.NewEventBus()
 
 	jb := &Driver{
@@ -111,7 +109,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		pq:     pq,
 
 		// events
-		eventsCh: eventsCh,
 		eventBus: eventBus,
 		id:       id,
 
@@ -213,7 +210,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		return nil, errors.E(op, err)
 	}
 
-	eventsCh := make(chan events.Event, 1)
 	eventBus, id := events.NewEventBus()
 
 	jb := &Driver{
@@ -223,7 +219,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		pq:     pq,
 
 		// events
-		eventsCh: eventsCh,
 		eventBus: eventBus,
 		id:       id,
 
