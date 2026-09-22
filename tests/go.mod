@@ -20,14 +20,15 @@ require (
 	github.com/roadrunner-server/rpc/v6 v6.0.0-beta.6
 	github.com/roadrunner-server/server/v6 v6.0.0-beta.7
 	github.com/stretchr/testify v1.12.1
-	github.com/twmb/franz-go v1.21.7
-	github.com/twmb/franz-go/pkg/kadm v1.18.0
+	github.com/twmb/franz-go v1.22.0
+	github.com/twmb/franz-go/pkg/kadm v1.19.0
 	go.opentelemetry.io/otel/sdk v1.46.0
 )
 
 replace github.com/roadrunner-server/kafka/v6 => ../
 
 require (
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.47.0 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.33.5 // indirect
@@ -102,7 +103,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
