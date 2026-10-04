@@ -17,6 +17,7 @@ Makefile
 # Dependency directories (remove the comment below to include it)
 tests/test-certs
 vendor/
+**/composer.lock
 .idea
 .DS_Store
 **/.claude/settings.local.json
