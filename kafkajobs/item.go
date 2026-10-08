@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"maps"
 	"sync/atomic"
+	"time"
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/errors"
@@ -32,7 +33,7 @@ type Item struct {
 	// private (used to commit messages)
 	stopped   *atomic.Uint64
 	commitsCh chan *kgo.Record
-	requeueCh chan *Item
+	pq        jobs.Queue
 	record    *kgo.Record
 }
 
@@ -127,13 +128,13 @@ func (i *Item) Nack() error {
 	return nil
 }
 
-func (i *Item) NackWithOptions(requeue bool, _ int) error {
+func (i *Item) NackWithOptions(requeue bool, delay int) error {
 	if i.stopped.Load() == 1 {
 		return errors.Str("failed to NackWithOptions the JOB, the pipeline is probably stopped")
 	}
 
 	if requeue {
-		err := i.Requeue(nil, 0)
+		err := i.Requeue(nil, delay)
 		if err != nil {
 			return err
 		}
@@ -142,47 +143,28 @@ func (i *Item) NackWithOptions(requeue bool, _ int) error {
 	return nil
 }
 
-func (i *Item) Copy() *Item {
-	item := new(Item)
-	*item = *i
-
-	*item.Options = Options{
-		Priority:  i.Options.Priority,
-		Pipeline:  i.Options.Pipeline,
-		Delay:     i.Options.Delay,
-		AutoAck:   i.Options.AutoAck,
-		Queue:     i.Options.Queue,
-		Partition: i.Options.Partition,
-		Metadata:  i.Options.Metadata,
-		Offset:    i.Options.Offset,
-	}
-
-	return item
-}
-
-// Requeue with the provided delay, handled by the Nack
-func (i *Item) Requeue(headers map[string][]string, _ int) error {
+// Requeue puts the job back into the pipeline priority queue after the delay.
+// The retry is kept only in memory: a record produced to the topic reaches
+// every consumer group of that topic.
+func (i *Item) Requeue(headers map[string][]string, delay int) error {
 	// check if we have jobs in worker, but the consumer was already stopped
 	// TODO: should not be needed after logic update
 	if i.stopped.Load() == 1 {
 		return errors.Str("failed to requeue the JOB, the pipeline is probably stopped")
 	}
 
-	msg := i.Copy()
-	if msg.headers == nil {
-		msg.headers = make(map[string][]string, 2)
-	}
+	maps.Copy(i.headers, headers)
 
-	if headers != nil {
-		maps.Copy(msg.headers, headers)
-	}
+	// Insert blocks while the queue is full, so it must not run on the jobs poller goroutine
+	time.AfterFunc(time.Duration(delay)*time.Second, func() {
+		if i.stopped.Load() == 1 {
+			return
+		}
 
-	select {
-	case i.requeueCh <- msg:
-		return nil
-	default:
-		return errors.Str("failed to requeue the JOB, the pipeline is probably stopped")
-	}
+		i.pq.Insert(i)
+	})
+
+	return nil
 }
 
 // Respond is not used and presented to satisfy the Job interface

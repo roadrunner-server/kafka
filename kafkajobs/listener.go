@@ -136,7 +136,7 @@ func (d *Driver) listen() error {
 		}
 
 		fetches.EachRecord(func(r *kgo.Record) {
-			item := fromConsumer(r, d.requeueCh, d.recordsCh, &d.stopped)
+			item := fromConsumer(r, d.pq, d.recordsCh, &d.stopped)
 
 			ctxT, span := d.tracer.Tracer(tracerName).Start(otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers)), "kafka_listener")
 			d.prop.Inject(ctxT, propagation.HeaderCarrier(item.headers))
@@ -152,7 +152,7 @@ func (d *Driver) listen() error {
 	}
 }
 
-func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, stopped *atomic.Uint64) *Item {
+func fromConsumer(msg *kgo.Record, pq jobs.Queue, commCh chan *kgo.Record, stopped *atomic.Uint64) *Item {
 	/*
 		RRJob      string = "rr_job"
 		RRHeaders  string = "rr_headers"
@@ -199,7 +199,7 @@ func fromConsumer(msg *kgo.Record, reqCh chan *Item, commCh chan *kgo.Record, st
 		headers: headers,
 
 		stopped:   stopped,
-		requeueCh: reqCh,
+		pq:        pq,
 		commitsCh: commCh,
 		record:    msg,
 

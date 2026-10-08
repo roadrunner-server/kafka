@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/stretchr/testify/require"
@@ -86,8 +88,19 @@ func TestItemContext(t *testing.T) {
 	require.Equal(t, float64(42), got["offset"])
 }
 
-// newItem wires an item to buffered channels standing in for the listener.
-func newItem(commits chan *kgo.Record, requeues chan *Item) *Item {
+// queue stands in for the jobs priority queue. Insert blocks until the test
+// receives the item, so an insert on the caller goroutine deadlocks the
+// synctest bubble.
+type queue chan jobs.Job
+
+func (q queue) Insert(item jobs.Job)   { q <- item }
+func (queue) Remove(string) []jobs.Job { return nil }
+func (queue) ExtractMin() jobs.Job     { return nil }
+func (queue) Len() uint64              { return 0 }
+
+// newItem wires an item to a commit channel and a queue standing in for the
+// listener.
+func newItem(commits chan *kgo.Record, pq jobs.Queue) *Item {
 	return &Item{
 		Ident:     "job-id",
 		headers:   map[string][]string{},
@@ -95,7 +108,7 @@ func newItem(commits chan *kgo.Record, requeues chan *Item) *Item {
 		stopped:   &atomic.Uint64{},
 		record:    &kgo.Record{Topic: "foo"},
 		commitsCh: commits,
-		requeueCh: requeues,
+		pq:        pq,
 	}
 }
 
@@ -113,7 +126,7 @@ func TestAckCommitsTheRecord(t *testing.T) {
 // reply from touching a consumer the driver has already torn down.
 func TestStoppedPipelineRejectsReply(t *testing.T) {
 	stopped := func() *Item {
-		i := newItem(make(chan *kgo.Record, 1), make(chan *Item, 1))
+		i := newItem(make(chan *kgo.Record, 1), make(queue))
 		i.stopped.Store(1)
 		return i
 	}
@@ -131,18 +144,78 @@ func TestAckOnFullChannel(t *testing.T) {
 	require.ErrorContains(t, newItem(commits, nil).Ack(), "the pipeline is probably stopped")
 }
 
-// TestRequeueCarriesNewHeaders checks a requeued copy travels through the
-// requeue channel with the merged headers and cleared broker coordinates.
-func TestRequeueCarriesNewHeaders(t *testing.T) {
-	requeues := make(chan *Item, 1)
-	item := newItem(nil, requeues)
-	item.Options.Offset = 42
+// TestRetryStaysInThePipeline covers roadrunner#2413: a retry goes back into
+// the pipeline priority queue after the requested delay, with the merged
+// headers. The same item keeps the consumed record, so its final ack commits
+// the original offset.
+func TestRetryStaysInThePipeline(t *testing.T) {
+	tests := []struct {
+		name  string
+		retry func(*Item) error
+		// stopAfter stops the pipeline this long after the retry, 0 keeps it running
+		stopAfter   time.Duration
+		wantInsert  bool
+		wantDelay   time.Duration
+		wantHeaders map[string][]string
+	}{
+		{
+			name:        "requeue without delay",
+			retry:       func(i *Item) error { return i.Requeue(map[string][]string{"attempts": {"2"}}, 0) },
+			wantInsert:  true,
+			wantHeaders: map[string][]string{"attempts": {"2"}, "keep": {"x"}},
+		},
+		{
+			name:        "requeue with delay",
+			retry:       func(i *Item) error { return i.Requeue(map[string][]string{"attempts": {"2"}}, 10) },
+			wantInsert:  true,
+			wantDelay:   10 * time.Second,
+			wantHeaders: map[string][]string{"attempts": {"2"}, "keep": {"x"}},
+		},
+		{
+			name:        "nack with requeue and delay",
+			retry:       func(i *Item) error { return i.NackWithOptions(true, 10) },
+			wantInsert:  true,
+			wantDelay:   10 * time.Second,
+			wantHeaders: map[string][]string{"attempts": {"1"}, "keep": {"x"}},
+		},
+		{
+			name:  "nack without requeue",
+			retry: func(i *Item) error { return i.NackWithOptions(false, 10) },
+		},
+		{
+			name:      "pipeline stopped during the delay",
+			retry:     func(i *Item) error { return i.Requeue(nil, 10) },
+			stopAfter: 5 * time.Second,
+		},
+	}
 
-	require.NoError(t, item.Requeue(map[string][]string{"attempts": {"1"}}, 0))
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				q := make(queue)
+				item := newItem(nil, q)
+				item.headers = map[string][]string{"attempts": {"1"}, "keep": {"x"}}
+				start := time.Now()
 
-	copied := <-requeues
-	require.Equal(t, []string{"1"}, copied.headers["attempts"])
-	require.Equal(t, int64(42), copied.Options.Offset)
+				require.NoError(t, tc.retry(item))
+
+				if tc.stopAfter > 0 {
+					time.Sleep(tc.stopAfter)
+					item.stopped.Store(1)
+				}
+
+				select {
+				case got := <-q:
+					require.True(t, tc.wantInsert, "unexpected retry")
+					require.Same(t, item, got)
+					require.Equal(t, tc.wantDelay, time.Since(start))
+					require.Equal(t, tc.wantHeaders, item.headers)
+				case <-time.After(time.Hour):
+					require.False(t, tc.wantInsert, "no retry within an hour")
+				}
+			})
+		})
+	}
 }
 
 // TestNackIsANoop records the kafka semantics: an offset that is not committed
