@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"slices"
 	"testing"
+	"time"
 
 	"tests/helpers"
 
@@ -170,18 +171,25 @@ func TestDeclareAndConsumeCG(t *testing.T) {
 }
 
 // TestRequeueRetriesUntilComplete covers the worker that fails a job with a
-// growing attempts header and only completes it on the fourth delivery. The
-// old test slept out the retries and asserted nothing.
+// growing attempts header and a 2 s delay, and only completes it on the fourth
+// delivery. A retry stays in the pipeline of the consumer group that failed it
+// and waits for the delay (roadrunner#2413).
 func TestRequeueRetriesUntilComplete(t *testing.T) {
+	// jobs_err.php requeues with withDelay(2)
+	const delay = 2 * time.Second
+
 	helpers.CleanupTopics(t, "test-3")
 
 	rr, _ := boot(t, "configs/.rr-kafka-jobs-err.yaml", initAddr)
 
-	helpers.DeclarePipe(initAddr, "test-3", "test-3", false)(t)
+	helpers.DeclarePipe(initAddr, "test-3", "test-3", true)(t)
 	helpers.ResumePipes(initAddr, "test-3")(t)
 	helpers.PushToPipe("test-3", false, initAddr)(t)
 
 	rr.WaitLog(t, "job was processed successfully", 1)
+
+	// the pushed record only: a retry produced to the topic reaches every consumer group
+	require.Equal(t, int64(1), helpers.EndOffset(t, "test-3"))
 
 	helpers.PausePipelines(initAddr, "test-3")(t)
 	helpers.DestroyPipelines(initAddr, "test-3")(t)
@@ -189,6 +197,11 @@ func TestRequeueRetriesUntilComplete(t *testing.T) {
 	// one original delivery plus the three the worker requeued
 	rr.RequireLogCount(t, "job processing was started", 4)
 	rr.RequireLogCount(t, "job was processed successfully", 1)
+
+	starts := rr.Logs.FilterMessage("job processing was started").All()
+	for i := 1; i < len(starts); i++ {
+		require.GreaterOrEqual(t, starts[i].Time.Sub(starts[i-1].Time), delay, "gap before delivery %d", i+1)
+	}
 }
 
 // TestPingOk covers the boot-time broker ping with a reachable broker: Serve

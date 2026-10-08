@@ -45,7 +45,6 @@ type Driver struct {
 	kafkaClient    *kgo.Client
 	kafkaCancelCtx context.CancelFunc
 	recordsCh      chan *kgo.Record
-	requeueCh      chan *Item
 
 	listeners atomic.Uint32
 	stopped   atomic.Uint64
@@ -111,7 +110,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		eventBus: eventBus,
 
 		recordsCh: make(chan *kgo.Record, 100),
-		requeueCh: make(chan *Item, 10),
 		cfg:       &conf,
 	}
 
@@ -128,7 +126,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 	jb.pipeline.Store(&pipeline)
 
 	go jb.recordsHandler()
-	go jb.requeueHandler() //nolint:gosec // G118: long-running goroutine outlives this constructor; ctx not propagated
 
 	return jb, nil
 }
@@ -220,7 +217,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		eventBus: eventBus,
 
 		recordsCh: make(chan *kgo.Record, 100),
-		requeueCh: make(chan *Item, 10),
 		cfg:       &conf,
 	}
 
@@ -237,7 +233,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 	jb.pipeline.Store(&pipeline)
 
 	go jb.recordsHandler()
-	go jb.requeueHandler() //nolint:gosec // G118: long-running goroutine outlives this constructor; ctx not propagated
 
 	return jb, nil
 }
@@ -383,7 +378,6 @@ func (d *Driver) Stop(ctx context.Context) error {
 	d.stopped.Store(1)
 
 	defer func() {
-		close(d.requeueCh)
 		close(d.recordsCh)
 		d.mu.Unlock()
 		span.End()
@@ -494,17 +488,6 @@ func (d *Driver) recordsHandler() {
 		if d.cfg.GroupOpts != nil {
 			d.kafkaClient.MarkCommitRecords(rec)
 			continue
-		}
-	}
-}
-
-func (d *Driver) requeueHandler() {
-	for item := range d.requeueCh {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		err := d.handleItem(ctx, item)
-		cancel()
-		if err != nil {
-			d.log.Error("failed to requeue the job", "error", err)
 		}
 	}
 }

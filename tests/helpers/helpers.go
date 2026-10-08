@@ -50,6 +50,25 @@ func deleteTopics(t *testing.T, topics ...string) {
 	}
 }
 
+// EndOffset returns the number of records written to topic, summed over its
+// partitions.
+func EndOffset(t *testing.T, topic string) int64 {
+	t.Helper()
+
+	client, err := kgo.NewClient(kgo.SeedBrokers(BrokerAddr))
+	require.NoError(t, err)
+	defer client.Close()
+
+	offsets, err := kadm.NewClient(client).ListEndOffsets(context.Background(), topic)
+	require.NoError(t, err)
+	require.NoError(t, offsets.Error())
+
+	var sum int64
+	offsets.Each(func(o kadm.ListedOffset) { sum += o.Offset })
+
+	return sum
+}
+
 const (
 	// redialTimeout bounds PushEventually, which retries across a broker outage.
 	redialTimeout = time.Second * 120
