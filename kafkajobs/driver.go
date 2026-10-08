@@ -40,7 +40,6 @@ type Driver struct {
 
 	// events
 	eventBus *events.Bus
-	id       string
 
 	// kafka config
 	kafkaClient    *kgo.Client
@@ -100,7 +99,7 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 	}
 	// PARSE CONFIGURATION END -------
 
-	eventBus, id := events.NewEventBus()
+	eventBus, _ := events.NewEventBus()
 
 	jb := &Driver{
 		tracer: tracer,
@@ -110,7 +109,6 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 
 		// events
 		eventBus: eventBus,
-		id:       id,
 
 		recordsCh: make(chan *kgo.Record, 100),
 		requeueCh: make(chan *Item, 10),
@@ -210,7 +208,7 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 		return nil, errors.E(op, err)
 	}
 
-	eventBus, id := events.NewEventBus()
+	eventBus, _ := events.NewEventBus()
 
 	jb := &Driver{
 		tracer: tracer,
@@ -220,7 +218,6 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 
 		// events
 		eventBus: eventBus,
-		id:       id,
 
 		recordsCh: make(chan *kgo.Record, 100),
 		requeueCh: make(chan *Item, 10),
@@ -406,8 +403,6 @@ func (d *Driver) Stop(ctx context.Context) error {
 
 	// remove all pending JOBS associated with the pipeline
 	_ = d.pq.Remove(pipe.Name())
-	// unsubscribe from the event bus
-	d.eventBus.Unsubscribe(d.id)
 
 	d.log.Debug("pipeline was stopped", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
