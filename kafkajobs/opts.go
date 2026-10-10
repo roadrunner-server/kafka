@@ -129,9 +129,22 @@ type ConsumerOpts struct {
 	ConsumeRegexp       bool                         `mapstructure:"consume_regexp" json:"consume_regexp"`
 	MaxFetchMessageSize int32                        `mapstructure:"max_fetch_message_size" json:"max_fetch_message_size"`
 	MinFetchMessageSize int32                        `mapstructure:"min_fetch_message_size" json:"min_fetch_message_size"`
+	PipeliningStrategy  PipeliningStrategy           `mapstructure:"pipelining_strategy" json:"pipelining_strategy"`
 	ConsumePartitions   map[string]map[int32]*Offset `mapstructure:"consume_partitions" json:"consume_partitions"`
 	ConsumerOffset      *Offset                      `mapstructure:"consumer_offset" json:"consumer_offset"`
 }
+
+// PipeliningStrategy sets how many records of one partition the listener keeps
+// in the pipeline priority queue at a time.
+type PipeliningStrategy string
+
+const (
+	// FanOutPipelining inserts every fetched record at once.
+	FanOutPipelining PipeliningStrategy = "FanOut"
+	// SerialPipelining inserts the next record of a partition after the worker
+	// reply to the previous one, which keeps the partition order.
+	SerialPipelining PipeliningStrategy = "Serial"
+)
 
 type ClientAuthType string
 
