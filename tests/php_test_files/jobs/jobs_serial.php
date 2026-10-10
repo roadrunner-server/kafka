@@ -11,7 +11,6 @@ while ($task = $consumer->waitTask()) {
         [, $seq] = explode(":", $payload);
 
         usleep(((int)$seq % 2 === 0) ? 50000 : 0);
-        fwrite(STDERR, "consumed " . $payload . "\n");
 
         if ($payload === "p1:5" && $task->getHeaderLine("attempts") === "") {
             $task->withHeader("attempts", "1")->withDelay(1)->fail("retry", true);

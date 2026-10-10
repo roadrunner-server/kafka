@@ -218,11 +218,13 @@ func CreateTopic(t *testing.T, topic string, partitions int32) {
 
 // PushToPartition pushes a job with payload to one partition of topic. The
 // pipeline needs producer_options.partitioning_strategy: Manual, otherwise the
-// producer picks the partition.
+// producer picks the partition. The job ID is the payload, so the jobs plugin
+// log carries it.
 func PushToPartition(address string, pipeline string, topic string, partition int32, payload string) func(t *testing.T) {
 	return func(t *testing.T) {
 		job := dummyJob(pipeline, topic, false)
 		job.Payload = []byte(payload)
+		job.Id = payload
 		job.Options.Partition = partition
 
 		client := NewJobsClient(t, address)

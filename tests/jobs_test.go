@@ -312,22 +312,21 @@ func TestPauseResumeKeepsOneListener(t *testing.T) {
 	}, 2*time.Second, 50*time.Millisecond, "a second listener stopped")
 }
 
-// consumedPayloads returns the payloads the worker reported, in log order. A
-// worker stderr chunk can hold several lines, so every entry is split.
-func consumedPayloads(rr *helpers.RR) []string {
+// startedIDs returns the IDs of the jobs the plugin started, in log order.
+// The plugin writes this line on the poller goroutine before it executes the
+// job, so for one partition the order is the processing order.
+func startedIDs(rr *helpers.RR) []string {
 	var out []string
-	for _, entry := range rr.Logs.FilterMessageSnippet("consumed ").All() {
-		for line := range strings.SplitSeq(entry.Message, "\n") {
-			if payload, ok := strings.CutPrefix(strings.TrimSpace(line), "consumed "); ok {
-				out = append(out, payload)
-			}
+	for _, entry := range rr.Logs.FilterMessage("job processing was started").All() {
+		if id, ok := entry.Attrs["ID"].(string); ok {
+			out = append(out, id)
 		}
 	}
 	return out
 }
 
 // TestSerialPipelining covers consumer_options.pipelining_strategy: Serial
-// (roadrunner#2222): records of one partition reach the workers in offset
+// (roadrunner#2222): records of one partition start in offset
 // order although four workers run and even records are slower. Two partitions
 // are consumed side by side. Record p1:5 is requeued once by the worker; the
 // retry runs before p1:6, so the gate holds through a requeue.
@@ -369,7 +368,7 @@ func TestSerialPipelining(t *testing.T) {
 		}
 	}
 
-	got := consumedPayloads(rr)
+	got := startedIDs(rr)
 	require.Len(t, got, len(want))
 
 	for p := range partitions {
