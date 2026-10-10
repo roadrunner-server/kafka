@@ -307,6 +307,14 @@ func (c *config) InitDefault(l *slog.Logger) ([]kgo.Opt, error) {
 		if c.ConsumerOpts.MinFetchMessageSize != 0 {
 			opts = append(opts, kgo.FetchMinBytes(c.ConsumerOpts.MinFetchMessageSize))
 		}
+
+		switch c.ConsumerOpts.PipeliningStrategy {
+		case "":
+			c.ConsumerOpts.PipeliningStrategy = FanOutPipelining
+		case FanOutPipelining, SerialPipelining:
+		default:
+			return nil, errors.Errorf("unknown pipelining strategy: %s", c.ConsumerOpts.PipeliningStrategy)
+		}
 	}
 
 	if c.Ping == nil {

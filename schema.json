@@ -129,6 +129,15 @@
                   "type": "integer",
                   "default": 1
                 },
+                "pipelining_strategy": {
+                  "description": "How many records of one partition the listener keeps in the pipeline at a time. FanOut inserts every fetched record at once. Serial inserts the next record of a partition after the worker reply to the previous one, which keeps the partition order.",
+                  "type": "string",
+                  "enum": [
+                    "FanOut",
+                    "Serial"
+                  ],
+                  "default": "FanOut"
+                },
                 "consumer_offset": {
                   "$ref": "#/definitions/Offset"
                 },

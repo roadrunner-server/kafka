@@ -201,3 +201,35 @@ func DeclarePipe(address string, pipeline string, topic string, withGroup bool) 
 			&jobsProto.Empty{}))
 	}
 }
+
+// CreateTopic creates topic with the given partition count. Auto-created topics
+// get one partition, which cannot show per-partition behavior.
+func CreateTopic(t *testing.T, topic string, partitions int32) {
+	t.Helper()
+
+	client, err := kgo.NewClient(kgo.SeedBrokers(BrokerAddr))
+	require.NoError(t, err)
+	defer client.Close()
+
+	resp, err := kadm.NewClient(client).CreateTopic(context.Background(), partitions, 1, nil, topic)
+	require.NoError(t, err)
+	require.NoError(t, resp.Err, "create topic %s", topic)
+}
+
+// PushToPartition pushes a job with payload to one partition of topic. The
+// pipeline needs producer_options.partitioning_strategy: Manual, otherwise the
+// producer picks the partition. The job ID is the payload, so the jobs plugin
+// log carries it.
+func PushToPartition(address string, pipeline string, topic string, partition int32, payload string) func(t *testing.T) {
+	return func(t *testing.T) {
+		job := dummyJob(pipeline, topic, false)
+		job.Payload = []byte(payload)
+		job.Id = payload
+		job.Options.Partition = partition
+
+		client := NewJobsClient(t, address)
+		require.NoError(t, client.Call("jobs.Push",
+			&jobsProto.PushRequest{Job: job},
+			&jobsProto.Empty{}))
+	}
+}

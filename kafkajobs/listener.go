@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"sync"
 	"sync/atomic"
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
@@ -24,6 +25,8 @@ func (d *Driver) listen() error {
 	// protect context against context update
 	ctx, d.kafkaCancelCtx = context.WithCancel(context.Background())
 	d.mu.Unlock()
+
+	serial := d.cfg.ConsumerOpts != nil && d.cfg.ConsumerOpts.PipeliningStrategy == SerialPipelining
 
 	defer func() {
 		if d.cfg.GroupOpts != nil {
@@ -135,21 +138,54 @@ func (d *Driver) listen() error {
 			}
 		}
 
-		fetches.EachRecord(func(r *kgo.Record) {
-			item := fromConsumer(r, d.pq, d.recordsCh, &d.stopped)
-
-			ctxT, span := d.tracer.Tracer(tracerName).Start(otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers)), "kafka_listener")
-			d.prop.Inject(ctxT, propagation.HeaderCarrier(item.headers))
-
-			d.pq.Insert(item)
-
-			span.End()
-		})
+		if serial {
+			d.insertSerial(ctx, fetches)
+		} else {
+			fetches.EachRecord(func(r *kgo.Record) {
+				d.insert(fromConsumer(r, d.pq, d.recordsCh, &d.stopped))
+			})
+		}
 
 		if d.cfg.GroupOpts != nil {
 			d.kafkaClient.AllowRebalance()
 		}
 	}
+}
+
+// insert hands the record to the pipeline priority queue inside a listener span.
+func (d *Driver) insert(item *Item) {
+	ctxT, span := d.tracer.Tracer(tracerName).Start(otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(item.headers)), "kafka_listener")
+	d.prop.Inject(ctxT, propagation.HeaderCarrier(item.headers))
+
+	d.pq.Insert(item)
+
+	span.End()
+}
+
+// insertSerial keeps one record per partition in the pipeline: the next record
+// of a partition enters the queue after the worker reply to the previous one.
+// It returns after every partition of the fetch is drained or ctx is canceled.
+func (d *Driver) insertSerial(ctx context.Context, fetches kgo.Fetches) {
+	var wg sync.WaitGroup
+
+	fetches.EachPartition(func(p kgo.FetchTopicPartition) {
+		wg.Go(func() {
+			for _, r := range p.Records {
+				item := fromConsumer(r, d.pq, d.recordsCh, &d.stopped)
+				item.done = make(chan struct{})
+
+				d.insert(item)
+
+				select {
+				case <-item.done:
+				case <-ctx.Done():
+					return
+				}
+			}
+		})
+	})
+
+	wg.Wait()
 }
 
 func fromConsumer(msg *kgo.Record, pq jobs.Queue, commCh chan *kgo.Record, stopped *atomic.Uint64) *Item {

@@ -252,12 +252,14 @@ func (d *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	go func() {
-		err := d.listen()
-		if err != nil {
-			d.log.Error("listener error", "error", err)
-		}
-	}()
+	d.once.Do(func() {
+		go func() {
+			err := d.listen()
+			if err != nil {
+				d.log.Error("listener error", "error", err)
+			}
+		}()
+	})
 
 	d.listeners.Store(1)
 	d.log.Debug("pipeline was started", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())

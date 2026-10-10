@@ -218,8 +218,112 @@ func TestRetryStaysInThePipeline(t *testing.T) {
 	}
 }
 
-// TestNackIsANoop records the kafka semantics: an offset that is not committed
-// is redelivered by the broker, so a plain nack has nothing to do.
+// TestNackIsANoop records the FanOut semantics: a plain nack has no gate to
+// open and nothing to commit.
 func TestNackIsANoop(t *testing.T) {
 	require.NoError(t, newItem(nil, nil).Nack())
+}
+
+// newSerialItem is newItem with the gate the listener sets in Serial mode.
+func newSerialItem(commits chan *kgo.Record, pq jobs.Queue) *Item {
+	item := newItem(commits, pq)
+	item.done = make(chan struct{})
+	return item
+}
+
+// released reports whether the serial gate of item is open. A nil gate (FanOut
+// mode) is never open.
+func released(item *Item) bool {
+	select {
+	case <-item.done:
+		return true
+	default:
+		return false
+	}
+}
+
+// TestSerialGate covers which worker replies open the per-partition gate of a
+// Serial pipeline. Only a reply that settles the record opens it; a requeue
+// keeps the partition blocked until the retry is settled.
+func TestSerialGate(t *testing.T) {
+	tests := []struct {
+		name string
+		// reply is the call the jobs plugin makes for the worker reply
+		reply func(*Item) error
+		// drain gives the commit channel room for the ack; false leaves nobody reading it
+		drain bool
+		// stop marks the pipeline stopped before the reply
+		stop         bool
+		wantErr      string
+		wantReleased bool
+	}{
+		{name: "ack", reply: (*Item).Ack, drain: true, wantReleased: true},
+		{name: "ack on a full commit channel", reply: (*Item).Ack, wantErr: "the pipeline is probably stopped"},
+		{name: "ack on a stopped pipeline", reply: (*Item).Ack, drain: true, stop: true, wantErr: "the pipeline is probably stopped"},
+		{name: "nack", reply: (*Item).Nack, wantReleased: true},
+		{name: "nack without requeue", reply: func(i *Item) error { return i.NackWithOptions(false, 0) }, wantReleased: true},
+		{name: "nack with requeue", reply: func(i *Item) error { return i.NackWithOptions(true, 0) }},
+		{name: "requeue", reply: func(i *Item) error { return i.Requeue(nil, 0) }},
+		{name: "requeue on a stopped pipeline", reply: func(i *Item) error { return i.Requeue(nil, 0) }, stop: true, wantErr: "the pipeline is probably stopped"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			commits := make(chan *kgo.Record)
+			if tc.drain {
+				commits = make(chan *kgo.Record, 1)
+			}
+
+			// the buffer takes the re-insert of a requeue without a reader
+			item := newSerialItem(commits, make(queue, 1))
+			if tc.stop {
+				item.stopped.Store(1)
+			}
+
+			err := tc.reply(item)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.wantReleased, released(item))
+		})
+	}
+}
+
+// TestSerialGateOpensAfterTheRetry covers the retry cycle of a Serial
+// pipeline: the requeued item comes back from the queue after the delay and
+// its ack opens the gate. A later duplicate reply is harmless.
+func TestSerialGateOpensAfterTheRetry(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		q := make(queue)
+		commits := make(chan *kgo.Record, 1)
+		item := newSerialItem(commits, q)
+		start := time.Now()
+
+		require.NoError(t, item.NackWithOptions(true, 10))
+		require.False(t, released(item), "gate open before the retry")
+
+		retry := <-q
+		require.Same(t, item, retry)
+		require.Equal(t, 10*time.Second, time.Since(start))
+		require.False(t, released(item), "gate open before the retry reply")
+
+		require.NoError(t, retry.Ack())
+		require.True(t, released(item))
+
+		require.NoError(t, item.Nack())
+		require.True(t, released(item))
+	})
+}
+
+// TestFanOutItemHasNoGate records that FanOut items carry a nil gate and every
+// reply path tolerates it.
+func TestFanOutItemHasNoGate(t *testing.T) {
+	item := newItem(make(chan *kgo.Record, 1), make(queue, 1))
+
+	require.NoError(t, item.Nack())
+	require.NoError(t, item.NackWithOptions(false, 0))
+	require.NoError(t, item.Ack())
 }
