@@ -282,3 +282,29 @@ func (*inMemoryTracer) Name() string                       { return "inMemoryTra
 func (m *inMemoryTracer) Tracer() *sdktrace.TracerProvider { return m.tp }
 
 var _ = slog.LevelError
+
+// TestPauseResumeKeepsOneListener covers a pause and a resume on a pipeline
+// listed under consume. The listener Run started keeps polling, and Resume
+// must not start another one. Every listener logs "kafka listener stopped"
+// once at destroy, so a second listener shows up as a second record.
+func TestPauseResumeKeepsOneListener(t *testing.T) {
+	helpers.CleanupTopics(t, "test-1")
+
+	rr, _ := boot(t, "configs/.rr-kafka-init.yaml", initAddr)
+
+	helpers.PausePipelines(initAddr, "test-1")(t)
+	rr.WaitLog(t, "pipeline was paused", 1)
+	helpers.ResumePipes(initAddr, "test-1")(t)
+	rr.WaitLog(t, "pipeline was resumed", 1)
+
+	// the pipeline still consumes after the cycle
+	helpers.PushToPipe("test-1", false, initAddr)(t)
+	rr.WaitLog(t, "job was processed successfully", 1)
+
+	helpers.DestroyPipelines(initAddr, "test-1")(t)
+	rr.WaitLog(t, "kafka listener stopped", 1)
+
+	require.Never(t, func() bool {
+		return rr.CountLog("kafka listener stopped") > 1
+	}, 2*time.Second, 50*time.Millisecond, "a second listener stopped")
+}
