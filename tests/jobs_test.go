@@ -2,8 +2,10 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,8 +23,9 @@ import (
 )
 
 const (
-	initAddr = "127.0.0.1:6001"
-	pqAddr   = "127.0.0.1:6002"
+	initAddr   = "127.0.0.1:6001"
+	pqAddr     = "127.0.0.1:6002"
+	serialAddr = "127.0.0.1:6004"
 )
 
 func jobsPlugins() []any {
@@ -307,4 +310,110 @@ func TestPauseResumeKeepsOneListener(t *testing.T) {
 	require.Never(t, func() bool {
 		return rr.CountLog("kafka listener stopped") > 1
 	}, 2*time.Second, 50*time.Millisecond, "a second listener stopped")
+}
+
+// consumedPayloads returns the payloads the worker reported, in log order. A
+// worker stderr chunk can hold several lines, so every entry is split.
+func consumedPayloads(rr *helpers.RR) []string {
+	var out []string
+	for _, entry := range rr.Logs.FilterMessageSnippet("consumed ").All() {
+		for line := range strings.SplitSeq(entry.Message, "\n") {
+			if payload, ok := strings.CutPrefix(strings.TrimSpace(line), "consumed "); ok {
+				out = append(out, payload)
+			}
+		}
+	}
+	return out
+}
+
+// TestSerialPipelining covers consumer_options.pipelining_strategy: Serial
+// (roadrunner#2222): records of one partition reach the workers in offset
+// order although four workers run and even records are slower. Two partitions
+// are consumed side by side. Record p1:5 is requeued once by the worker; the
+// retry runs before p1:6, so the gate holds through a requeue.
+func TestSerialPipelining(t *testing.T) {
+	const (
+		topic        = "foo-serial"
+		pipeline     = "test-serial"
+		partitions   = 2
+		perPartition = 20
+	)
+
+	helpers.CleanupTopics(t, topic)
+	helpers.CreateTopic(t, topic, partitions)
+
+	rr, _ := boot(t, "configs/.rr-kafka-serial.yaml", serialAddr)
+
+	for seq := range perPartition {
+		for p := range int32(partitions) {
+			helpers.PushToPartition(serialAddr, pipeline, topic, p, fmt.Sprintf("p%d:%d", p, seq))(t)
+		}
+	}
+
+	rr.WaitLog(t, "job was processed successfully", partitions*perPartition)
+	helpers.DestroyPipelines(serialAddr, pipeline)(t)
+
+	rr.RequireLogCount(t, "job was pushed successfully", partitions*perPartition)
+	rr.RequireLogCount(t, "job was re-queued", 1)
+	// every record once, plus the retry of p1:5
+	rr.RequireLogCount(t, "job processing was started", partitions*perPartition+1)
+	rr.RequireLogCount(t, "job was processed successfully", partitions*perPartition)
+
+	var want []string
+	for p := range partitions {
+		for seq := range perPartition {
+			want = append(want, fmt.Sprintf("p%d:%d", p, seq))
+			if p == 1 && seq == 5 {
+				want = append(want, "p1:5")
+			}
+		}
+	}
+
+	got := consumedPayloads(rr)
+	require.Len(t, got, len(want))
+
+	for p := range partitions {
+		prefix := fmt.Sprintf("p%d:", p)
+		var gotP, wantP []string
+		for _, payload := range got {
+			if strings.HasPrefix(payload, prefix) {
+				gotP = append(gotP, payload)
+			}
+		}
+		for _, payload := range want {
+			if strings.HasPrefix(payload, prefix) {
+				wantP = append(wantP, payload)
+			}
+		}
+		require.Equal(t, wantP, gotP, "partition %d order", p)
+	}
+}
+
+// TestSerialPipeliningStop covers the shutdown of a Serial pipeline while a
+// record waits for its worker reply: Stop cancels the listener context, so the
+// listener leaves without that reply.
+func TestSerialPipeliningStop(t *testing.T) {
+	const (
+		topic    = "foo-serial-stop"
+		pipeline = "test-serial-stop"
+	)
+
+	helpers.CleanupTopics(t, topic)
+
+	rr, stop := boot(t, "configs/.rr-kafka-serial-stop.yaml", serialAddr)
+
+	for range 4 {
+		helpers.PushToTopic(pipeline, topic, false, serialAddr)(t)
+	}
+
+	// jobs_ok_pq.php sleeps 2 seconds per job, so the first record is in flight
+	rr.WaitLog(t, "job processing was started", 1)
+
+	helpers.DestroyPipelines(serialAddr, pipeline)(t)
+
+	// well under the 2 second worker sleep: the listener left on the context
+	rr.WaitLogWithin(t, "kafka listener stopped", 1, time.Second)
+	rr.RequireLogCount(t, "pipeline was stopped", 1)
+
+	stop()
 }
