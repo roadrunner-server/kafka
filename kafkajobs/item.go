@@ -132,8 +132,8 @@ func (i *Item) Ack() error {
 	}
 }
 
-// Nack skips the record. The broker redelivers an uncommitted offset, so the
-// only work is to open the serial gate.
+// Nack skips the record: the next commit on the partition moves past its
+// offset. The only work is to open the serial gate.
 func (i *Item) Nack() error {
 	i.release()
 	return nil
@@ -183,8 +183,8 @@ func (i *Item) Respond(_ []byte, _ string) error {
 	return nil
 }
 
-// release opens the serial gate. The first settling reply wins; a later reply
-// on a requeued record is a no-op.
+// release opens the serial gate. The first settling reply closes the channel.
+// A later reply on a requeued record does nothing.
 func (i *Item) release() {
 	if i.done == nil {
 		return

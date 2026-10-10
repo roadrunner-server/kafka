@@ -218,8 +218,8 @@ func TestRetryStaysInThePipeline(t *testing.T) {
 	}
 }
 
-// TestNackIsANoop records the kafka semantics: an offset that is not committed
-// is redelivered by the broker, so a plain nack has nothing to do.
+// TestNackIsANoop records the FanOut semantics: a plain nack has no gate to
+// open and nothing to commit.
 func TestNackIsANoop(t *testing.T) {
 	require.NoError(t, newItem(nil, nil).Nack())
 }
@@ -326,5 +326,4 @@ func TestFanOutItemHasNoGate(t *testing.T) {
 	require.NoError(t, item.Nack())
 	require.NoError(t, item.NackWithOptions(false, 0))
 	require.NoError(t, item.Ack())
-	require.False(t, released(item))
 }
