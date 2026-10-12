@@ -6,7 +6,7 @@ toolchain go1.27.1
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.6
-	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.2
+	github.com/roadrunner-server/api-plugins/v6 v6.0.0
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/errors v1.5.0
 	github.com/roadrunner-server/events v1.0.1
