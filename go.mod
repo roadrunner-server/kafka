@@ -9,7 +9,7 @@ require (
 	github.com/roadrunner-server/api-plugins/v6 v6.0.0-beta.2
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/errors v1.5.0
-	github.com/roadrunner-server/events v1.0.1
+	github.com/roadrunner-server/events v1.1.0
 	github.com/stretchr/testify v1.12.1
 	github.com/twmb/franz-go v1.22.1
 	go.opentelemetry.io/contrib/propagators/jaeger v1.47.0
