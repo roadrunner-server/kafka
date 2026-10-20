@@ -14,7 +14,7 @@ require (
 	github.com/roadrunner-server/goridge/v4 v4.0.0
 	github.com/roadrunner-server/informer/v6 v6.0.0
 	github.com/roadrunner-server/jobs/v6 v6.0.1
-	github.com/roadrunner-server/kafka/v6 v6.0.0
+	github.com/roadrunner-server/kafka/v6 v6.1.0
 	github.com/roadrunner-server/logger/v6 v6.0.0
 	github.com/roadrunner-server/resetter/v6 v6.0.0
 	github.com/roadrunner-server/rpc/v6 v6.0.0
@@ -108,7 +108,7 @@ require (
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	google.golang.org/genproto v0.0.0-20261012220534-4341edf3f941 // indirect
+	google.golang.org/genproto v0.0.0-20261019180522-ce908d29299b // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 )
