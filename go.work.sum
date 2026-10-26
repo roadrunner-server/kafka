@@ -497,6 +497,7 @@ cloud.google.com/go/dataproc/v2 v2.22.0 h1:ypUlQKOHMHGv8FQCCNYd0XyM6tAaMDdbcSFBc
 cloud.google.com/go/dataproc/v2 v2.22.0/go.mod h1:oARVSa38kAHvSuG+cozsrY2sE6UajGuvOOf9vS+ADHI=
 cloud.google.com/go/dataproc/v2 v2.25.0/go.mod h1:hkiM6kzc8CwLGoquMN1oghyhuI1fE0girmChH4h9W7w=
 cloud.google.com/go/dataproc/v2 v2.26.0/go.mod h1:uyClvchFI+/HcSHAReHFg6f7V8IYuuVL57KakLJ12pU=
+cloud.google.com/go/dataproc/v2 v2.27.0/go.mod h1:Nn5Uo3WDtJQGVD+i8LSQdqJzSgRosjrQ3ARUtZrsWGo=
 cloud.google.com/go/dataqna v0.8.1 h1:ITpUJep04hC9V7C+gcK390HO++xesQFSUJ7S4nSnF3U=
 cloud.google.com/go/dataqna v0.8.4 h1:NJnu1kAPamZDs/if3bJ3+Wb6tjADHKL83NUWsaIp2zg=
 cloud.google.com/go/dataqna v0.8.4/go.mod h1:mySRKjKg5Lz784P6sCov3p1QD+RZQONRMRjzGNcFd0c=
@@ -1199,6 +1200,7 @@ cloud.google.com/go/securitycenter v1.44.0 h1:/jinB3GeXuNkWfrzK1EdWR+kD4J0z0YGyE
 cloud.google.com/go/securitycenter v1.44.0/go.mod h1:7BMMbSTAddVfiE+HrC8tKS6SuRkyK7FRPlkpAZBRV3U=
 cloud.google.com/go/securitycenter v1.46.0/go.mod h1:7mAlzsCsKlEVmciAFORl431laDGpoKGFkSQndAzFs30=
 cloud.google.com/go/securitycenter v1.47.0/go.mod h1:OWKAGzP36rJ4pFSjU441g+vi7WTRdMFRVw1rykvMwPE=
+cloud.google.com/go/securitycenter v1.48.0/go.mod h1:Xhqb1Ulsd8ocjXAxH0Byj7xQ9QRgcphrMIxGGDJ/gT8=
 cloud.google.com/go/servicecontrol v1.11.1 h1:d0uV7Qegtfaa7Z2ClDzr9HJmnbJW7jn0WhZ7wOX6hLE=
 cloud.google.com/go/servicedirectory v1.11.0 h1:pBWpjCFVGWkzVTkqN3TBBIqNSoSHY86/6RL0soSQ4z8=
 cloud.google.com/go/servicedirectory v1.11.3 h1:5niCMfkw+jifmFtbBrtRedbXkJm3fubSR/KHbxSJZVM=
