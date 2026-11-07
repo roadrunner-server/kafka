@@ -3,7 +3,8 @@ package kafkajobs
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
+	jsonv1 "encoding/json"
+	"encoding/json/v2"
 	"log/slog"
 	"strings"
 	"sync"
@@ -156,7 +157,7 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipeline j
 	var pOpt *ProducerOpts
 	producerOpts := pipeline.String(producerOptionsKey, "")
 	if producerOpts != "" {
-		err = json.Unmarshal([]byte(producerOpts), &pOpt)
+		err = json.Unmarshal([]byte(producerOpts), &pOpt, jsonv1.FormatDurationAsNano(true))
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
