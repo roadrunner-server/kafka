@@ -1,7 +1,7 @@
 package kafkajobs
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"

@@ -19,8 +19,8 @@ const (
 )
 
 type Offset struct {
-	Type  OffsetTypes `mapstructure:"type"`
-	Value int64       `mapstructure:"value"`
+	Type  OffsetTypes `mapstructure:"type" json:"type"`
+	Value int64       `mapstructure:"value" json:"value"`
 }
 
 type Acks string
